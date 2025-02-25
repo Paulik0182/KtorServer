@@ -2,6 +2,8 @@ package com.example
 
 import com.example.data.*
 import com.example.data.dto.CounterpartyResponse
+import com.example.data.dto.OrderItemResponse
+import com.example.data.dto.OrderResponse
 import com.example.data.dto.ProductResponse
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -283,8 +285,59 @@ fun Application.configureRouting() {
 
         // Получить все заказы
         get("/orders") {
-            call.respond(OrderDao.getAll().map { it[Orders.id] })
+            try {
+                call.respond(OrderDao.getAll().map {
+                    OrderResponse(
+                        id = it[Orders.id],
+                        orderDate = it[Orders.orderDate].toString(),
+                        counterpartyId = it[Orders.counterpartyId],
+                        items = OrderItemDao.getItemsByOrder(it[Orders.id]).map { row ->
+                            OrderItemResponse(
+                                id = row[OrderItems.id],
+                                orderId = row[OrderItems.orderId],
+                                productId = row[OrderItems.productId],
+                                supplierId = row[OrderItems.supplierId],
+                                quantity = row[OrderItems.quantity]
+                            )
+                        }
+                    )
+                })
+            } catch (e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
+            }
         }
+
+        // получение делалей заказа
+        get("/orders/{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+            if (id != null) {
+                val order = OrderDao.getById(id)?.let {
+                    OrderResponse(
+                        id = it[Orders.id],
+                        orderDate = it[Orders.orderDate].toString(),
+                        counterpartyId = it[Orders.counterpartyId],
+                        items = OrderItemDao.getItemsByOrder(id).map { row ->
+                            OrderItemResponse(
+                                id = row[OrderItems.id],
+                                orderId = row[OrderItems.orderId],
+                                productId = row[OrderItems.productId],
+                                supplierId = row[OrderItems.supplierId],
+                                quantity = row[OrderItems.quantity]
+                            )
+                        }
+                    )
+                }
+                if (order != null) {
+                    call.respond(order)
+                } else {
+                    call.respond(HttpStatusCode.NotFound, "Заказ не найден")
+                }
+            } else {
+                call.respond(HttpStatusCode.BadRequest, "Некорректный ID заказа")
+            }
+        }
+
 
         // Получить товары в заказе
         get("/orders/{id}/items") {
@@ -299,12 +352,40 @@ fun Application.configureRouting() {
 
         // Создать новый заказ
         post("/orders") {
-            val params = call.receive<Map<String, String>>()
-            val counterpartyId = params["counterpartyId"]?.toIntOrNull()
-                ?: return@post call.respond("Неверный ID контрагента")
+            try {
+                val request = call.receive<OrderResponse>()
+                val orderId = OrderDao.insert(request.counterpartyId)
 
-            val orderId = OrderDao.insert(counterpartyId)
-            call.respond("Заказ создан с ID = $orderId")
+                request.items.forEach { item ->
+                    OrderItemDao.insert(orderId, item.productId, item.supplierId, item.quantity)
+                }
+
+                call.respond(HttpStatusCode.Created, "Заказ $orderId создан")
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
+            }
+        }
+
+        // Обновление заказа
+        put("/orders/{id}") {
+            try {
+                val id = call.parameters["id"]?.toIntOrNull() ?: return@put call.respond(
+                    HttpStatusCode.BadRequest, "Некорректный ID"
+                )
+
+                val request = call.receive<OrderResponse>()
+                OrderDao.update(id, request.counterpartyId)
+
+                // Удаляем старые товары и добавляем новые
+                OrderItemDao.deleteItemsByOrder(id)
+                request.items.forEach { item ->
+                    OrderItemDao.insert(id, item.productId, item.supplierId, item.quantity)
+                }
+
+                call.respond(HttpStatusCode.OK, "Заказ $id обновлен")
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
+            }
         }
 
         // удаляет заказ и все связанные с ним товары в order_items.

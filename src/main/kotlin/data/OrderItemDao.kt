@@ -3,6 +3,7 @@ package com.example.data
 import com.example.OrderItems
 import com.example.Products
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
@@ -38,6 +39,11 @@ object OrderItemDao {
             .innerJoin(Products)
             .select { OrderItems.orderId eq orderId }
             .toList()
+    }
+
+    // Удалить все товары из заказа
+    fun deleteItemsByOrder(orderId: Int) = transaction {
+        OrderItems.deleteWhere { OrderItems.orderId eq orderId }
     }
 
     /**
