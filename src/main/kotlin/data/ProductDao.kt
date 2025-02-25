@@ -7,6 +7,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere
+import java.math.BigDecimal
 
 /**
  * Этот объект управляет товарами (products) в базе данных.
@@ -166,11 +167,11 @@ object ProductDao {
      * Обновит описание на "Игровой ноутбук с RTX 4080".
      * Поставит новую цену 2999.99.
      */
-    fun update(id: Int, name: String, description: String, price: Double) = transaction {
+    fun update(id: Int, name: String, description: String, price: BigDecimal) = transaction {
         Products.update({ Products.id eq id }) {
             it[Products.name] = name
             it[Products.description] = description
-            it[Products.price] = price.toBigDecimal()
+            it[Products.price] = price
         }
     }
 

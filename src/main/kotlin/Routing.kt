@@ -2,6 +2,7 @@ package com.example
 
 import com.example.data.*
 import com.example.data.dto.CounterpartyResponse
+import com.example.data.dto.ProductResponse
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.*
@@ -48,10 +49,25 @@ fun Application.configureRouting() {
         }
 
         /**
-         * Получить список всех товаров
+         * Получить список всех товаров TODO Переделан!!
          */
         get("/products") {
-            call.respond(ProductDao.getAll().map { it[Products.name] })
+            try {
+                val products = ProductDao.getAll().map {
+                    ProductResponse(
+                        id = it[Products.id],
+                        name = it[Products.name],
+                        description = it[Products.description],
+                        price = it[Products.price],
+                        hasSuppliers = it[Products.hasSuppliers],
+                        supplierCount = it[Products.supplierCount]
+                    )
+                }
+                call.respond(products)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
+            }
         }
 
         /**
@@ -116,6 +132,22 @@ fun Application.configureRouting() {
             }
         }
         // http://127.0.0.1:8080/products/55
+
+        // TODO Обновить данные товара
+        put("/products/{id}") {
+            try {
+                val id = call.parameters["id"]?.toIntOrNull() ?: return@put call.respond(
+                    HttpStatusCode.BadRequest,
+                    "Некорректный ID"
+                )
+                val product = call.receive<ProductResponse>()
+                ProductDao.update(id, product.name, product.description, product.price)
+                call.respond(HttpStatusCode.OK, "Продукт $id обновлен")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
+            }
+        }
 
         /**
          * Получить поставщиков товара
@@ -236,7 +268,10 @@ fun Application.configureRouting() {
         // TODO Обновить данные поставщика
         put("/counterparties/{id}") {
             try {
-                val id = call.parameters["id"]?.toIntOrNull() ?: return@put call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+                val id = call.parameters["id"]?.toIntOrNull() ?: return@put call.respond(
+                    HttpStatusCode.BadRequest,
+                    "Некорректный ID"
+                )
                 val counterparty = call.receive<CounterpartyResponse>()
                 CounterpartyDao.update(id, counterparty.name, counterparty.type)
                 call.respond(HttpStatusCode.OK, "Контрагент $id обновлен")
