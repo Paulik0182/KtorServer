@@ -76,18 +76,44 @@ fun Application.configureRouting() {
          * Получить товар по ID
          */
         get("/products/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull()
-            if (id != null) {
-                val product = ProductDao.getById(id)
-                if (product != null) {
-                    call.respond(product[Products.name])
-                } else {
-                    call.respond("Продукт не найден")
-                }
-            } else {
-                call.respond("Неверный ID")
+            val id = call.parameters["id"]?.toIntOrNull() ?: return@get call.respond(
+                HttpStatusCode.BadRequest, "Неверный ID продукта"
+            )
+
+            try {
+                val product = ProductDao.getById(id) ?: return@get call.respond(
+                    HttpStatusCode.NotFound, "Продукт не найден"
+                )
+
+                call.respond(
+                    ProductResponse(
+                        id = product[Products.id],
+                        name = product[Products.name],
+                        description = product[Products.description],
+                        price = product[Products.price],
+                        hasSuppliers = product[Products.hasSuppliers],
+                        supplierCount = product[Products.supplierCount]
+                    )
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
             }
         }
+
+//        get("/products/{id}") {
+//            val id = call.parameters["id"]?.toIntOrNull()
+//            if (id != null) {
+//                val product = ProductDao.getById(id)
+//                if (product != null) {
+//                    call.respond(product[Products.name])
+//                } else {
+//                    call.respond("Продукт не найден")
+//                }
+//            } else {
+//                call.respond("Неверный ID")
+//            }
+//        }
 
         /**
          * Добавить товар
@@ -231,6 +257,31 @@ fun Application.configureRouting() {
                 call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
             }
             // http://127.0.0.1:8080/counterparties
+        }
+
+        get("/counterparties/{id}") {
+            val id = call.parameters["id"]?.toIntOrNull() ?: return@get call.respond(
+                HttpStatusCode.BadRequest, "Неверный ID контрагента"
+            )
+
+            try {
+                val counterparty = CounterpartyDao.getById(id) ?: return@get call.respond(
+                    HttpStatusCode.NotFound, "Контрагент не найден"
+                )
+
+                call.respond(
+                    CounterpartyResponse(
+                        id = counterparty[Counterparties.id],
+                        name = counterparty[Counterparties.name],
+                        type = counterparty[Counterparties.type],
+                        isSupplier = counterparty[Counterparties.isSupplier],
+                        productCount = counterparty[Counterparties.productCount]
+                    )
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
+            }
         }
 
         // Получить товары поставщика
