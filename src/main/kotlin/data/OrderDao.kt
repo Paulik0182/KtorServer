@@ -33,7 +33,9 @@ object OrderDao {
      * Возвращает один заказ, если найден, или null, если такого ID нет.
      */
     fun getById(id: Int): ResultRow? = transaction {
-        Orders.select { Orders.id eq id }.singleOrNull()
+        Orders
+            .selectAll().where { Orders.id eq id }
+            .singleOrNull()
     }
 
     /**
@@ -84,7 +86,7 @@ object OrderDao {
     fun getOrderItems(orderId: Int): List<ResultRow> = transaction {
         OrderItems
             .innerJoin(Products)
-            .select { OrderItems.orderId eq orderId }
+            .selectAll().where { OrderItems.orderId eq orderId }
             .toList()
     }
 

@@ -26,6 +26,7 @@ tasks.test {
 dependencies {
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.auth)
     implementation(libs.logback.classic)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.config.yaml)
@@ -34,10 +35,7 @@ dependencies {
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
 
-//    implementation("io.ktor:ktor-server-core:2.3.0")
-//    implementation("io.ktor:ktor-server-netty:2.3.0")
-    // Логирование
-//    implementation("ch.qos.logback:logback-classic:1.4.12")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
 
     // ContentNegotiation для работы с JSON
     implementation("io.ktor:ktor-server-content-negotiation:2.3.0")

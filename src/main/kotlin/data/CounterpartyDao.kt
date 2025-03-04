@@ -35,7 +35,9 @@ object CounterpartyDao {
      * Если строки нет → возвращает null.
      */
     fun getById(id: Int): ResultRow? = transaction {
-        Counterparties.select { Counterparties.id eq id }.singleOrNull()
+        Counterparties
+            .selectAll().where { Counterparties.id eq id }
+            .singleOrNull()
     }
 
     /**
@@ -101,7 +103,7 @@ object CounterpartyDao {
     fun getProductsBySupplier(supplierId: Int): List<ResultRow> = transaction {
         ProductSuppliers
             .innerJoin(Products)
-            .select { ProductSuppliers.supplierId eq supplierId }
+            .selectAll().where { ProductSuppliers.supplierId eq supplierId }
             .toList()
     }
 

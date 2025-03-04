@@ -1,13 +1,13 @@
 package com.example.data
 
-import com.example.Counterparties
-import com.example.ProductSuppliers
-import com.example.Products
+import com.example.*
+import com.example.data.dto.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere
 import java.math.BigDecimal
+import java.util.Base64
 
 /**
  * Этот объект управляет товарами (products) в базе данных.
@@ -32,9 +32,34 @@ object ProductDao {
      * val products = ProductDao.getAll()
      * Получим все товары в виде списка.
      */
-    fun getAll(): List<ResultRow> = transaction {
+    fun getAll2(): List<ResultRow> = transaction {
         Products.selectAll().toList()
     }
+
+    fun getAll(): List<ProductResponse> = transaction {
+        Products.leftJoin(ProductLinks).leftJoin(ProductLocations).leftJoin(ProductImages)
+            .selectAll()
+            .groupBy { it[Products.id] }
+            .map { (productId, rows) ->
+                val firstRow = rows.first()
+                ProductResponse(
+                    id = firstRow[Products.id],
+                    name = firstRow[Products.name],
+                    description = firstRow[Products.description],
+                    price = firstRow[Products.price],
+                    hasSuppliers = firstRow[Products.hasSuppliers],
+                    supplierCount = firstRow[Products.supplierCount],
+                    stockQuantity = firstRow[Products.stockQuantity],
+                    minStockQuantity = firstRow[Products.minStockQuantity],
+                    productCodes = getProductCodes(productId).map { it.code },
+                    isDemanded = firstRow[Products.isDemanded],
+                    productLinks = getProductLinks(productId),
+                    locations = getProductLocations(productId),
+                    images = getProductImages(productId)
+                )
+            }
+    }
+
 
     /**
      * Получение товара по ID
@@ -58,9 +83,34 @@ object ProductDao {
      * val product = ProductDao.getById(5)
      * Найдем товар с ID = 5.
      */
-    fun getById(id: Int): ResultRow? = transaction {
-        Products.select { Products.id eq id }.singleOrNull()
+    fun getById2(id: Int): ResultRow? = transaction {
+        Products
+            .selectAll().where { Products.id eq id }
+            .singleOrNull()
     }
+
+    fun getById(id: Int): ProductResponse? = transaction {
+        Products.selectAll().where { Products.id eq id }
+            .map {
+                ProductResponse(
+                    id = it[Products.id],
+                    name = it[Products.name],
+                    description = it[Products.description],
+                    price = it[Products.price],
+                    hasSuppliers = it[Products.hasSuppliers],
+                    supplierCount = it[Products.supplierCount],
+                    stockQuantity = it[Products.stockQuantity],
+                    minStockQuantity = it[Products.minStockQuantity],
+                    productCodes = getProductCodes(id).map { it.code },
+                    isDemanded = it[Products.isDemanded],
+                    productLinks = getProductLinks(id),
+                    locations = getProductLocations(id),
+                    images = getProductImages(id)
+                )
+            }
+            .singleOrNull()
+    }
+
 
     /**
      * Добавление нового товара
@@ -94,13 +144,35 @@ object ProductDao {
      * Добавляем товар "Телефон", "Смартфон", цена 599.99.
      * Метод вернет ID нового товара.
      */
-    fun insert(name: String, description: String, price: Double): Int = transaction {
-        Products.insert {
+    fun insert(
+        name: String,
+        description: String,
+        price: BigDecimal,
+        stockQuantity: Int,
+        minStockQuantity: Int,
+        productCodes: List<String>,
+        isDemanded: Boolean,
+        productLinks: List<ProductLinkResponse>,
+        locations: List<WarehouseLocationResponse>,
+        images: List<ProductImageResponse>,
+    ): Int = transaction {
+        val productId = Products.insertReturning(listOf(Products.id)) {
             it[Products.name] = name
             it[Products.description] = description
-            it[Products.price] = price.toBigDecimal()
-        } get Products.id
+            it[Products.price] = price
+            it[Products.stockQuantity] = stockQuantity
+            it[Products.minStockQuantity] = minStockQuantity
+            it[Products.isDemanded] = isDemanded
+        }.single()[Products.id]
+
+        insertProductCodes(productId, productCodes)
+        insertProductLinks(productId, productLinks)
+        insertProductLocations(productId, locations)
+        insertProductImages(productId, images)
+
+        productId
     }
+
 
     /**
      * Удаление товара
@@ -167,12 +239,39 @@ object ProductDao {
      * Обновит описание на "Игровой ноутбук с RTX 4080".
      * Поставит новую цену 2999.99.
      */
-    fun update(id: Int, name: String, description: String, price: BigDecimal) = transaction {
+    fun update(
+        id: Int,
+        name: String,
+        description: String,
+        price: BigDecimal,
+        stockQuantity: Int,
+        minStockQuantity: Int,
+        productCodes: List<String>,
+        isDemanded: Boolean,
+        productLinks: List<ProductLinkResponse>,
+        locations: List<WarehouseLocationResponse>,
+        images: List<ProductImageResponse>,
+    ) = transaction {
         Products.update({ Products.id eq id }) {
             it[Products.name] = name
             it[Products.description] = description
             it[Products.price] = price
+            it[Products.stockQuantity] = stockQuantity
+            it[Products.minStockQuantity] = minStockQuantity
+            it[Products.isDemanded] = isDemanded
         }
+
+        deleteProductCodes(id)
+        insertProductCodes(id, productCodes)
+
+        deleteProductLinks(id)
+        insertProductLinks(id, productLinks)
+
+        deleteProductLocations(id)
+        insertProductLocations(id, locations)
+
+        deleteProductImages(id)
+        insertProductImages(id, images)
     }
 
     /**
@@ -202,7 +301,99 @@ object ProductDao {
     fun getSuppliersByProduct(productId: Int): List<ResultRow> = transaction {
         ProductSuppliers
             .innerJoin(Counterparties)
-            .select { ProductSuppliers.productId eq productId }
+            .selectAll().where { ProductSuppliers.productId eq productId }
             .toList()
+    }
+
+    fun getProductCodes(productId: Int): List<ProductCodeResponse> = transaction {
+        ProductCodes.selectAll().where { ProductCodes.productId eq productId }
+            .map {
+                ProductCodeResponse(
+                    productId = it[ProductCodes.productId],
+                    code = it[ProductCodes.code]
+                )
+            }
+    }
+
+    fun getProductLinks(productId: Int): List<ProductLinkResponse> = transaction {
+        ProductLinks.selectAll().where { ProductLinks.productId eq productId }
+            .map {
+                ProductLinkResponse(
+                    id = it[ProductLinks.id],
+                    productId = it[ProductLinks.productId],
+                    counterpartyId = it[ProductLinks.counterpartyId],
+                    url = it[ProductLinks.url]
+                )
+            }
+    }
+
+    fun getProductLocations(productId: Int): List<WarehouseLocationResponse> = transaction {
+        ProductLocations.innerJoin(WarehouseLocations)
+            .selectAll().where { ProductLocations.productId eq productId }
+            .map {
+                WarehouseLocationResponse(
+                    id = it[WarehouseLocations.id],
+                    counterpartyId = it[WarehouseLocations.counterpartyId],
+                    locationCode = it[WarehouseLocations.locationCode]
+                )
+            }
+    }
+
+    fun getProductImages(productId: Int): List<ProductImageResponse> = transaction {
+        ProductImages.selectAll().where { ProductImages.productId eq productId }
+            .map {
+                ProductImageResponse(
+                    id = it[ProductImages.id],
+                    productId = it[ProductImages.productId],
+                    imageBase64 = Base64.getEncoder()
+                        .encodeToString(it[ProductImages.image]) // Преобразуем бинарные данные в Base64
+                )
+            }
+    }
+
+    fun insertProductCodes(productId: Int, codes: List<String>) = transaction {
+        ProductCodes.batchInsert(codes) { code ->
+            this[ProductCodes.productId] = productId
+            this[ProductCodes.code] = code
+        }
+    }
+
+    fun insertProductLinks(productId: Int, links: List<ProductLinkResponse>) = transaction {
+        ProductLinks.batchInsert(links) { link ->
+            this[ProductLinks.productId] = productId
+            this[ProductLinks.counterpartyId] = link.counterpartyId
+            this[ProductLinks.url] = link.url
+        }
+    }
+
+    fun insertProductLocations(productId: Int, locations: List<WarehouseLocationResponse>) = transaction {
+        ProductLocations.batchInsert(locations) { location ->
+            this[ProductLocations.productId] = productId
+            this[ProductLocations.locationId] = location.id
+        }
+    }
+
+    fun insertProductImages(productId: Int, images: List<ProductImageResponse>) = transaction {
+        ProductImages.batchInsert(images) { image ->
+            this[ProductImages.productId] = productId
+            this[ProductImages.image] =
+                Base64.getDecoder().decode(image.imageBase64) // Преобразуем Base64 обратно в ByteArray
+        }
+    }
+
+    fun deleteProductCodes(productId: Int) = transaction {
+        ProductCodes.deleteWhere { ProductCodes.productId eq productId }
+    }
+
+    fun deleteProductLinks(productId: Int) = transaction {
+        ProductLinks.deleteWhere { ProductLinks.productId eq productId }
+    }
+
+    fun deleteProductLocations(productId: Int) = transaction {
+        ProductLocations.deleteWhere { ProductLocations.productId eq productId }
+    }
+
+    fun deleteProductImages(productId: Int) = transaction {
+        ProductImages.deleteWhere { ProductImages.productId eq productId }
     }
 }

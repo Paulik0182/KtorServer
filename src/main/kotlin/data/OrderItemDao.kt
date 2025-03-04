@@ -37,7 +37,7 @@ object OrderItemDao {
     fun getItemsByOrder(orderId: Int): List<ResultRow> = transaction {
         OrderItems
             .innerJoin(Products)
-            .select { OrderItems.orderId eq orderId }
+            .selectAll().where { OrderItems.orderId eq orderId }
             .toList()
     }
 

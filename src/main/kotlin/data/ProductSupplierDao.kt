@@ -44,7 +44,7 @@ object ProductSupplierDao {
     fun getSuppliersByProduct(productId: Int): List<ResultRow> = transaction {
         ProductSuppliers
             .innerJoin(Counterparties)
-            .select { ProductSuppliers.productId eq productId }
+            .selectAll().where { ProductSuppliers.productId eq productId }
             .toList()
     }
 
