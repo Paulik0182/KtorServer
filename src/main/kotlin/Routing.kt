@@ -101,20 +101,6 @@ fun Application.configureRouting() {
             }
         }
 
-//        get("/products/{id}") {
-//            val id = call.parameters["id"]?.toIntOrNull()
-//            if (id != null) {
-//                val product = ProductDao.getById(id)
-//                if (product != null) {
-//                    call.respond(product[Products.name])
-//                } else {
-//                    call.respond("Продукт не найден")
-//                }
-//            } else {
-//                call.respond("Неверный ID")
-//            }
-//        }
-
         /**
          * Добавить товар
          *
@@ -337,16 +323,22 @@ fun Application.configureRouting() {
         // Получить все заказы
         get("/orders") {
             try {
-                call.respond(OrderDao.getAll().map {
+                call.respond(OrderDao.getAll().map { order ->
+                    // Получаем контрагента
+                    val counterparty = CounterpartyDao.getById(order[Orders.counterpartyId])
+
                     OrderResponse(
-                        id = it[Orders.id],
-                        orderDate = it[Orders.orderDate].toString(),
-                        counterpartyId = it[Orders.counterpartyId],
-                        items = OrderItemDao.getItemsByOrder(it[Orders.id]).map { row ->
+                        id = order[Orders.id],
+                        orderDate = order[Orders.orderDate].toString(),
+                        counterpartyId = order[Orders.counterpartyId],
+                        counterpartyName = counterparty?.get(Counterparties.name)
+                            ?: "Неизвестный контрагент", // 🔹 Добавили!
+                        items = OrderItemDao.getItemsByOrder(order[Orders.id]).map { row ->
                             OrderItemResponse(
                                 id = row[OrderItems.id],
                                 orderId = row[OrderItems.orderId],
                                 productId = row[OrderItems.productId],
+                                productName = row[Products.name],
                                 supplierId = row[OrderItems.supplierId],
                                 quantity = row[OrderItems.quantity]
                             )
@@ -362,33 +354,49 @@ fun Application.configureRouting() {
         // получение делалей заказа
         get("/orders/{id}") {
             val id = call.parameters["id"]?.toIntOrNull()
-            if (id != null) {
-                val order = OrderDao.getById(id)?.let {
-                    OrderResponse(
-                        id = it[Orders.id],
-                        orderDate = it[Orders.orderDate].toString(),
-                        counterpartyId = it[Orders.counterpartyId],
-                        items = OrderItemDao.getItemsByOrder(id).map { row ->
-                            OrderItemResponse(
-                                id = row[OrderItems.id],
-                                orderId = row[OrderItems.orderId],
-                                productId = row[OrderItems.productId],
-                                supplierId = row[OrderItems.supplierId],
-                                quantity = row[OrderItems.quantity]
-                            )
-                        }
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Неверный ID заказа")
+                return@get
+            }
+
+            try {
+                val order = OrderDao.getById(id)
+                if (order == null) {
+                    call.respond(HttpStatusCode.NotFound, "Заказ не найден")
+                    return@get
+                }
+
+                // Получаем контрагента по ID
+                val counterparty = CounterpartyDao.getById(order[Orders.counterpartyId])
+
+                // Получаем товары для заказа
+                val items = OrderItemDao.getItemsByOrder(id).map { item ->
+                    val product = ProductDao.getById(item[OrderItems.productId])
+                    OrderItemResponse(
+                        id = item[OrderItems.id],
+                        orderId = id,
+                        productId = item[OrderItems.productId],
+                        productName = product?.get(Products.name) ?: "Неизвестный продукт",
+                        supplierId = item[OrderItems.supplierId],
+                        quantity = item[OrderItems.quantity]
                     )
                 }
-                if (order != null) {
-                    call.respond(order)
-                } else {
-                    call.respond(HttpStatusCode.NotFound, "Заказ не найден")
-                }
-            } else {
-                call.respond(HttpStatusCode.BadRequest, "Некорректный ID заказа")
+
+                // Формируем полный ответ
+                val orderResponse = OrderResponse(
+                    id = order[Orders.id],
+                    orderDate = order[Orders.orderDate].toString(), // Преобразуем дату в строку
+                    counterpartyId = order[Orders.counterpartyId],
+                    counterpartyName = counterparty?.get(Counterparties.name) ?: "Неизвестный контрагент",
+                    items = items
+                )
+
+                call.respond(orderResponse)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
             }
         }
-
 
         // Получить товары в заказе
         get("/orders/{id}/items") {
