@@ -44,9 +44,10 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.0")
 
     // Работа с базой через Exposed
-    implementation("org.jetbrains.exposed:exposed-core:0.41.1")
-    implementation("org.jetbrains.exposed:exposed-dao:0.41.1")
-    implementation("org.jetbrains.exposed:exposed-jdbc:0.41.1")
+    implementation("org.jetbrains.exposed:exposed-core:0.59.0")
+    implementation("org.jetbrains.exposed:exposed-dao:0.59.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.59.0")
+    implementation("org.jetbrains.exposed:exposed-java-time:0.59.0")
 
     // Драйвер PostgreSQL
     implementation("org.postgresql:postgresql:42.7.2")
@@ -63,8 +64,6 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.3")
 
     implementation("com.zaxxer:HikariCP:6.2.1") // Пул соединений HikariCP
-
-    implementation("org.jetbrains.exposed:exposed-java-time:0.41.1")
 
 //    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 }
