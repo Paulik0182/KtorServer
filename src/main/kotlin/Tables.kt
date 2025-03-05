@@ -27,6 +27,8 @@ object Products : Table("products") {
     val stockQuantity = integer("stock_quantity").default(0)
     val minStockQuantity = integer("min_stock_quantity").default(0)
     val isDemanded = bool("is_demanded").default(true)
+    val categories = text("categories").default("[]") // JSON-строка
+    val subcategories = text("subcategories").default("[]")
 
     override val primaryKey = PrimaryKey(id)
 }

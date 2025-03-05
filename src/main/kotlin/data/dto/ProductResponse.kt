@@ -23,5 +23,7 @@ data class ProductResponse(
     val isDemanded: Boolean, // флаг востребованности
     val productLinks: List<ProductLinkResponse>, // список интернет-ссылок.
     val locations: List<WarehouseLocationResponse>, // код места хранения товара
-    val images: List<ProductImageResponse> // для картинок
+    val images: List<ProductImageResponse>, // для картинок
+    val categories: List<String>, // категория
+    val subcategories: List<String> // подкатегория
 )

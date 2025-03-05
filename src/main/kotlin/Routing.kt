@@ -8,7 +8,7 @@ import io.ktor.server.plugins.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.jetbrains.exposed.sql.select
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.Base64
@@ -95,20 +95,27 @@ fun Application.configureRouting() {
          * }
          */
         post("/products") {
-            val product = call.receive<ProductResponse>()
-            val id = ProductDao.insert(
-                product.name,
-                product.description,
-                product.price,
-                product.stockQuantity,
-                product.minStockQuantity,
-                product.productCodes,
-                product.isDemanded,
-                product.productLinks,
-                product.locations,
-                product.images
-            )
-            call.respond("Продукт создан с ID = $id")
+            try {
+                val product = call.receive<ProductResponse>() // Безопасный способ десериализации
+                val id = ProductDao.insert(
+                    product.name,
+                    product.description,
+                    product.price,
+                    product.stockQuantity,
+                    product.minStockQuantity,
+                    product.productCodes,
+                    product.isDemanded,
+                    product.productLinks,
+                    product.locations,
+                    product.images,
+                    product.categories,
+                    product.subcategories
+                )
+                call.respond("Продукт создан с ID = $id")
+            } catch (e: Exception) {
+                println("Ошибка в POST /products: ${e.localizedMessage}")
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка при создании: ${e.localizedMessage}")
+            }
         }
 
         get("/warehouse_locations") {
@@ -284,6 +291,10 @@ fun Application.configureRouting() {
                     "Некорректный ID"
                 )
                 val product = call.receive<ProductResponse>()
+
+                // Логируем полученные данные
+                println("Обновление продукта: ID=$id, Name=${product.name}, Categories=${product.categories}, Subcategories=${product.subcategories}")
+
                 ProductDao.update(
                     id,
                     product.name,
@@ -295,10 +306,15 @@ fun Application.configureRouting() {
                     product.isDemanded,
                     product.productLinks,
                     product.locations,
-                    product.images
+                    product.images,
+                    product.categories,
+                    product.subcategories
                 )
+
                 call.respond(HttpStatusCode.OK, "Продукт $id обновлен")
+
             } catch (e: Exception) {
+                println("Ошибка в PUT /products: ${e.localizedMessage}")
                 e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
             }

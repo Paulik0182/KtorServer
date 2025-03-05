@@ -1,5 +1,6 @@
 package com.example
 
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Table
 
@@ -15,3 +16,5 @@ import org.jetbrains.exposed.sql.Table
 inline fun <reified T : Any> Table.jsonb(name: String): Column<T> {
     return registerColumn(name, JsonColumnType(T::class))
 }
+
+fun String.toList(): List<String> = Json.decodeFromString(this)

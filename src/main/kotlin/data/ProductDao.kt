@@ -2,6 +2,7 @@ package com.example.data
 
 import com.example.*
 import com.example.data.dto.*
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -37,29 +38,45 @@ object ProductDao {
     }
 
     fun getAll(): List<ProductResponse> = transaction {
-        Products.leftJoin(ProductLinks).leftJoin(ProductLocations).leftJoin(ProductImages)
-            .selectAll()
-            .groupBy { it[Products.id] }
-            .map { (productId, rows) ->
-                val firstRow = rows.first()
-                ProductResponse(
-                    id = firstRow[Products.id],
-                    name = firstRow[Products.name],
-                    description = firstRow[Products.description],
-                    price = firstRow[Products.price],
-                    hasSuppliers = firstRow[Products.hasSuppliers],
-                    supplierCount = firstRow[Products.supplierCount],
-                    stockQuantity = firstRow[Products.stockQuantity],
-                    minStockQuantity = firstRow[Products.minStockQuantity],
-                    productCodes = getProductCodes(productId).map { it.code },
-                    isDemanded = firstRow[Products.isDemanded],
-                    productLinks = getProductLinks(productId),
-                    locations = getProductLocations(productId),
-                    images = getProductImages(productId)
-                )
-            }
+        try {
+            Products.leftJoin(ProductLinks).leftJoin(ProductLocations).leftJoin(ProductImages)
+                .selectAll()
+                .groupBy { it[Products.id] }
+                .map { (productId, rows) ->
+                    val firstRow = rows.first()
+                    ProductResponse(
+                        id = firstRow[Products.id],
+                        name = firstRow[Products.name],
+                        description = firstRow[Products.description],
+                        price = firstRow[Products.price],
+                        hasSuppliers = firstRow[Products.hasSuppliers],
+                        supplierCount = firstRow[Products.supplierCount],
+                        stockQuantity = firstRow[Products.stockQuantity],
+                        minStockQuantity = firstRow[Products.minStockQuantity],
+                        productCodes = getProductCodes(productId).map { it.code },
+                        isDemanded = firstRow[Products.isDemanded],
+                        productLinks = getProductLinks(productId),
+                        locations = getProductLocations(productId),
+                        images = getProductImages(productId),
+                        categories = try {
+                            Json.decodeFromString(firstRow[Products.categories] ?: "[]")
+                        } catch (e: Exception) {
+                            println("Ошибка десериализации categories: ${e.localizedMessage}")
+                            emptyList()
+                        },
+                        subcategories = try {
+                            Json.decodeFromString(firstRow[Products.subcategories] ?: "[]")
+                        } catch (e: Exception) {
+                            println("Ошибка десериализации subcategories: ${e.localizedMessage}")
+                            emptyList()
+                        }
+                    )
+                }
+        } catch (e: Exception) {
+            println("Ошибка в getAll(): ${e.localizedMessage}")
+            throw e
+        }
     }
-
 
     /**
      * Получение товара по ID
@@ -90,27 +107,43 @@ object ProductDao {
     }
 
     fun getById(id: Int): ProductResponse? = transaction {
-        Products.selectAll().where { Products.id eq id }
-            .map {
-                ProductResponse(
-                    id = it[Products.id],
-                    name = it[Products.name],
-                    description = it[Products.description],
-                    price = it[Products.price],
-                    hasSuppliers = it[Products.hasSuppliers],
-                    supplierCount = it[Products.supplierCount],
-                    stockQuantity = it[Products.stockQuantity],
-                    minStockQuantity = it[Products.minStockQuantity],
-                    productCodes = getProductCodes(id).map { it.code },
-                    isDemanded = it[Products.isDemanded],
-                    productLinks = getProductLinks(id),
-                    locations = getProductLocations(id),
-                    images = getProductImages(id)
-                )
-            }
-            .singleOrNull()
+        try {
+            Products.selectAll().where { Products.id eq id }
+                .map {
+                    ProductResponse(
+                        id = it[Products.id],
+                        name = it[Products.name],
+                        description = it[Products.description],
+                        price = it[Products.price],
+                        hasSuppliers = it[Products.hasSuppliers],
+                        supplierCount = it[Products.supplierCount],
+                        stockQuantity = it[Products.stockQuantity],
+                        minStockQuantity = it[Products.minStockQuantity],
+                        categories = try {
+                            Json.decodeFromString(it[Products.categories] ?: "[]")
+                        } catch (e: Exception) {
+                            println("Ошибка десериализации categories: ${e.localizedMessage}")
+                            emptyList()
+                        },
+                        subcategories = try {
+                            Json.decodeFromString(it[Products.subcategories] ?: "[]")
+                        } catch (e: Exception) {
+                            println("Ошибка десериализации subcategories: ${e.localizedMessage}")
+                            emptyList()
+                        },
+                        productCodes = getProductCodes(id).map { it.code },
+                        isDemanded = it[Products.isDemanded],
+                        productLinks = getProductLinks(id),
+                        locations = getProductLocations(id),
+                        images = getProductImages(id)
+                    )
+                }
+                .singleOrNull()
+        } catch (e: Exception) {
+            println("Ошибка в getById($id): ${e.localizedMessage}")
+            throw e
+        }
     }
-
 
     /**
      * Добавление нового товара
@@ -155,6 +188,8 @@ object ProductDao {
         productLinks: List<ProductLinkResponse>,
         locations: List<WarehouseLocationResponse>,
         images: List<ProductImageResponse>,
+        categories: List<String>,
+        subcategories: List<String>
     ): Int = transaction {
         val productId = Products.insertReturning(listOf(Products.id)) {
             it[Products.name] = name
@@ -163,6 +198,8 @@ object ProductDao {
             it[Products.stockQuantity] = stockQuantity
             it[Products.minStockQuantity] = minStockQuantity
             it[Products.isDemanded] = isDemanded
+            it[Products.categories] = Json.encodeToString(categories)
+            it[Products.subcategories] = Json.encodeToString(subcategories)
         }.single()[Products.id]
 
         insertProductCodes(productId, productCodes)
@@ -172,7 +209,6 @@ object ProductDao {
 
         productId
     }
-
 
     /**
      * Удаление товара
@@ -251,6 +287,8 @@ object ProductDao {
         productLinks: List<ProductLinkResponse>,
         locations: List<WarehouseLocationResponse>,
         images: List<ProductImageResponse>,
+        categories: List<String>,
+        subcategories: List<String>
     ) = transaction {
         Products.update({ Products.id eq id }) {
             it[Products.name] = name
@@ -259,6 +297,8 @@ object ProductDao {
             it[Products.stockQuantity] = stockQuantity
             it[Products.minStockQuantity] = minStockQuantity
             it[Products.isDemanded] = isDemanded
+            it[Products.categories] = Json.encodeToString(categories).toString()
+            it[Products.subcategories] = Json.encodeToString(subcategories).toString()
         }
 
         deleteProductCodes(id)
