@@ -1,17 +1,14 @@
 package com.example.data
 
 import com.example.*
-import com.example.data.dto.*
 import com.example.data.dto.dictionaries.*
 import com.example.data.dto.order.OrderItemResponse
 import com.example.data.dto.product.*
-import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.math.BigDecimal
-import java.util.Base64
+import java.util.*
 
 /**
  * Этот объект управляет товарами (products) в базе данных.
@@ -47,6 +44,11 @@ object ProductDao {
                 println("row keys: ${row.fieldIndex.keys}") // Проверяем доступные ключи
                 println("Значение Products.name: ${row[Products.name] ?: "NULL"}")
 
+                val (unitName, unitAbbr) = getMeasurementUnitLocalized(
+                    row[Products.measurementUnitId],
+                    languageCode = "ru"
+                )
+
                 ProductResponse(
                     id = row[Products.id],
                     name = row.getOrNull(Products.name) ?: "Без названия", // Добавляем проверку null
@@ -57,8 +59,12 @@ object ProductDao {
                     totalStockQuantity = row[Products.totalStockQuantity] ?: 0,
                     minStockQuantity = row[Products.minStockQuantity] ?: 0,
                     isDemanded = row[Products.isDemanded] ?: true,
-                    measurementUnitId = row[Products.measurementUnitId] ?: 1L,
-                    measurementUnit = getMeasurementUnit(row[Products.measurementUnitId] ?: 1L),
+
+                    measurementUnitId = row[Products.measurementUnitId],
+                    measurementUnitList = getMeasurementUnit(row[Products.measurementUnitId], "ru"),
+                    measurementUnit = unitName,
+                    measurementUnitAbbreviation = unitAbbr,
+
                     productCodes = getProductCodes(row[Products.id]),
                     productLinks = getProductLinks(row[Products.id]),
                     productImages = getProductImages(row[Products.id]),
@@ -74,99 +80,6 @@ object ProductDao {
         }
     }
 
-
-//    fun getAll(): List<ProductResponse> = transaction {
-//        try {
-//            Products
-//                .leftJoin(ProductCategories)
-//                .leftJoin(ProductCodes)
-//                .leftJoin(ProductImages)
-//                .leftJoin(ProductLinks)
-//                .leftJoin(ProductCounterparties)
-//                .leftJoin(ProductSuppliers)
-//                .selectAll()
-//                .groupBy { it[Products.id] }
-//                .map { (productId, rows) ->
-//                    val firstRow = rows.first()
-//                    ProductResponse(
-//                        id = firstRow[Products.id],
-//                        name = firstRow[Products.name],
-//                        description = firstRow[Products.description],
-//                        price = firstRow[Products.price],
-//                        hasSuppliers = firstRow[Products.hasSuppliers],
-//                        supplierCount = firstRow[Products.supplierCount],
-//                        totalStockQuantity = firstRow[Products.totalStockQuantity],
-//                        minStockQuantity = firstRow[Products.minStockQuantity],
-//                        isDemanded = firstRow[Products.isDemanded],
-//                        measurementUnitId = firstRow[Products.measurementUnitId],
-//                        measurementUnit = getMeasurementUnit(firstRow[Products.measurementUnitId]),
-//                        productCodes = getProductCodes(productId),
-//                        productLinks = getProductLinks(productId),
-//                        productImages = getProductImages(productId),
-//                        productCounterparties = getProductCounterparties(productId),
-//                        productSuppliers = getProductSuppliers(productId),
-//                        productOrderItem = getProductOrders(productId),
-//                        categories = getProductCategories(productId)
-//                    )
-//                }
-//        } catch (e: Exception) {
-//            println("Ошибка в getAll(): ${e.localizedMessage}")
-//            throw e
-//        }
-//    }
-
-//    fun getAll(): List<ProductResponse> = transaction {
-//        try {
-//            Products
-//                .leftJoin(ProductCategories)
-//                .leftJoin(ProductCodes)
-//                .leftJoin(ProductImages)
-//                .leftJoin(ProductLinks)
-//                .leftJoin(ProductCounterparties)
-//                .leftJoin(ProductSuppliers)
-//                .select(
-//                    Products.id,
-//                    Products.name,
-//                    Products.description,
-//                    Products.price,
-//                    Products.hasSuppliers,
-//                    Products.supplierCount,
-//                    Products.totalStockQuantity,
-//                    Products.minStockQuantity,
-//                    Products.isDemanded,
-//                    Products.measurementUnitId
-//                )
-//                .groupBy { it[Products.id] }
-//                .map { (productId, rows) ->
-//                    val firstRow = rows.first()
-//
-//                    ProductResponse(
-//                        id = firstRow[Products.id],
-//                        name = firstRow[Products.name],  //  должно работать
-//                        description = firstRow[Products.description],
-//                        price = firstRow[Products.price],
-//                        hasSuppliers = firstRow[Products.hasSuppliers],
-//                        supplierCount = firstRow[Products.supplierCount],
-//                        totalStockQuantity = firstRow[Products.totalStockQuantity],
-//                        minStockQuantity = firstRow[Products.minStockQuantity],
-//                        isDemanded = firstRow[Products.isDemanded],
-//                        measurementUnitId = firstRow[Products.measurementUnitId],
-//                        measurementUnit = getMeasurementUnit(firstRow[Products.measurementUnitId]),
-//                        productCodes = getProductCodes(productId),
-//                        productLinks = getProductLinks(productId),
-//                        productImages = getProductImages(productId),
-//                        productCounterparties = getProductCounterparties(productId),
-//                        productSuppliers = getProductSuppliers(productId),
-//                        productOrderItem = getProductOrders(productId),
-//                        categories = getProductCategories(productId)
-//                    )
-//                }
-//        } catch (e: Exception) {
-//            println("Ошибка в getAll(): ${e.localizedMessage}")
-//            throw e
-//        }
-//    }
-
     /**
      * Получение товара по ID
      */
@@ -174,6 +87,11 @@ object ProductDao {
         try {
             Products.selectAll().where { Products.id eq productId }
                 .map {
+                    val (unitName, unitAbbr) = getMeasurementUnitLocalized(
+                        it[Products.measurementUnitId],
+                        languageCode = "ru"
+                    )
+
                     ProductResponse(
                         id = it[Products.id],
                         name = it[Products.name],
@@ -184,8 +102,12 @@ object ProductDao {
                         totalStockQuantity = it[Products.totalStockQuantity],
                         minStockQuantity = it[Products.minStockQuantity],
                         isDemanded = it[Products.isDemanded],
+
                         measurementUnitId = it[Products.measurementUnitId],
-                        measurementUnit = getMeasurementUnit(it[Products.measurementUnitId]),
+                        measurementUnitList = getMeasurementUnit(it[Products.measurementUnitId], "ru"),
+                        measurementUnit = unitName,
+                        measurementUnitAbbreviation = unitAbbr,
+
                         productCodes = getProductCodes(productId),
                         productLinks = getProductLinks(productId),
                         productImages = getProductImages(productId),
@@ -326,41 +248,95 @@ object ProductDao {
     }
 
     // Получение единицы измерения
-    fun getMeasurementUnit(measurementUnitId: Long): MeasurementUnitResponse? = transaction {
-        MeasurementUnits
+    fun getMeasurementUnit(measurementUnitId: Long, languageCode: String = "ru"): MeasurementUnitResponse? = transaction {
+        val row = MeasurementUnits
             .leftJoin(MeasurementUnitTranslations)
-            .selectAll().where { MeasurementUnits.id eq measurementUnitId }
-            .map {
-                MeasurementUnitResponse(
-                    id = it[MeasurementUnits.id],
-                    name = it[MeasurementUnits.name],
-                    abbreviation = it[MeasurementUnits.abbreviation] ?: "",
-                    translations = listOf(
-                        MeasurementUnitTranslationResponse(
-                            id = it[MeasurementUnitTranslations.id],
-                            measurementUnitId = measurementUnitId,
-                            languageCode = it[MeasurementUnitTranslations.languageCode],
-                            name = it[MeasurementUnitTranslations.name],
-                            abbreviation = it[MeasurementUnitTranslations.abbreviation]
-                        )
+            .selectAll().where {
+                (MeasurementUnits.id eq measurementUnitId) and
+                        (MeasurementUnitTranslations.languageCode eq languageCode)
+            }
+            .limit(1)
+            .firstOrNull()
+
+        if (row != null) {
+            val name = row[MeasurementUnitTranslations.name]
+            val abbreviation = row[MeasurementUnitTranslations.abbreviation]
+            return@transaction MeasurementUnitResponse(
+                id = row[MeasurementUnits.id],
+                name = name,
+                abbreviation = abbreviation ?: row[MeasurementUnits.abbreviation] ?: "",
+                translations = listOf(
+                    MeasurementUnitTranslationResponse(
+                        id = row[MeasurementUnitTranslations.id],
+                        measurementUnitId = measurementUnitId,
+                        languageCode = languageCode,
+                        name = name,
+                        abbreviation = abbreviation
                     )
                 )
-            }
-            .singleOrNull()
+            )
+        }
+
+        // Если перевода нет — берём только из основной таблицы
+        val fallback = MeasurementUnits
+            .selectAll().where { MeasurementUnits.id eq measurementUnitId }
+            .firstOrNull()
+
+        fallback?.let {
+            MeasurementUnitResponse(
+                id = it[MeasurementUnits.id],
+                name = it[MeasurementUnits.name],
+                abbreviation = it[MeasurementUnits.abbreviation] ?: "",
+                translations = emptyList()
+            )
+        }
     }
+
+
+    fun getMeasurementUnitLocalized(id: Long, languageCode: String = "ru"): Pair<String?, String?> {
+        val result = MeasurementUnits
+            .leftJoin(MeasurementUnitTranslations)
+            .selectAll().where {
+                (MeasurementUnits.id eq id) and (MeasurementUnitTranslations.languageCode eq languageCode)
+            }
+            .limit(1)
+            .firstOrNull()
+
+        return if (result != null) {
+            result[MeasurementUnitTranslations.name] to (result[MeasurementUnitTranslations.abbreviation] ?: "")
+        } else {
+            // Если перевода нет — вернем из основной таблицы
+            val fallback = MeasurementUnits.selectAll().where { MeasurementUnits.id eq id }.firstOrNull()
+            fallback?.get(MeasurementUnits.name) to (fallback?.get(MeasurementUnits.abbreviation) ?: "")
+        }
+    }
+
 
     // Получение складов, где хранится товар
     fun getProductCounterparties(productId: Long): List<ProductCounterpartyResponse> = transaction {
+
         ProductCounterparties.selectAll().where { ProductCounterparties.productId eq productId }
             .map {
+                val unit = getMeasurementUnit(it[ProductCounterparties.measurementUnitId], "ru")
+
+                val (unitName, unitAbbr) = getMeasurementUnitLocalized(
+                    it[ProductCounterparties.measurementUnitId],
+                    languageCode = "ru"
+                )
+
                 ProductCounterpartyResponse(
                     productId = it[ProductCounterparties.productId],
+                    productName = getProductName(it[ProductCounterparties.productId]),
                     counterpartyId = it[ProductCounterparties.counterpartyId],
+                    counterpartyName = getCounterpartyName(it[ProductCounterparties.counterpartyId]),
                     stockQuantity = it[ProductCounterparties.stockQuantity],
                     role = it[ProductCounterparties.role],
                     minStockQuantity = it[ProductCounterparties.minStockQuantity],
                     warehouseLocationCodes = it[ProductCounterparties.warehouseLocationCodes]?.split(","),
-                    measurementUnitId = it[ProductCounterparties.measurementUnitId]
+                    measurementUnitId = it[ProductCounterparties.measurementUnitId],
+                    measurementUnitList = unit,
+                    measurementUnit = unitName,
+                    measurementUnitAbbreviation = unitAbbr,
                 )
             }
     }
@@ -374,7 +350,9 @@ object ProductDao {
                 ProductSupplierResponse(
                     id = it[ProductSuppliers.id],
                     productId = it[ProductSuppliers.productId],
-                    supplierId = it[ProductSuppliers.supplierId]
+                    productName = getProductName(it[ProductSuppliers.productId]),
+                    supplierId = it[ProductSuppliers.supplierId],
+                    supplierName = getCounterpartyName(it[ProductSuppliers.supplierId])
                 )
             }
     }
@@ -386,15 +364,35 @@ object ProductDao {
             .innerJoin(Counterparties)
             .selectAll().where { OrderItems.productId eq productId }
             .map {
+                val (unitName, unitAbbr) = getMeasurementUnitLocalized(
+                    it[OrderItems.measurementUnitId],
+                    languageCode = "ru"
+                )
+
                 OrderItemResponse(
                     id = it[OrderItems.id],
                     orderId = it[OrderItems.orderId],
                     productId = it[OrderItems.productId],
+                    productName = getProductName(it[OrderItems.productId]),
                     quantity = it[OrderItems.quantity],
-                    productName = it.getOrNull(Products.name) ?: "Неизвестный продукт",
-                    measurementUnitId = it[OrderItems.measurementUnitId]
+                    measurementUnitId = it[OrderItems.measurementUnitId],
+                    measurementUnitList = getMeasurementUnit(it[OrderItems.measurementUnitId], "ru"),
+                    measurementUnit = unitName,
+                    measurementUnitAbbreviation = unitAbbr
                 )
             }
+    }
+
+    fun getProductName(id: Long): String = transaction {
+        Products.selectAll().where { Products.id eq id }
+            .map { it[Products.name] }
+            .singleOrNull() ?: "Неизвестный продукт"
+    }
+
+    fun getCounterpartyName(id: Long): String = transaction {
+        Counterparties.selectAll().where { Counterparties.id eq id }
+            .map { it[Counterparties.name] }
+            .singleOrNull() ?: "Нет названия фирмы"
     }
 
     // Получение категорий товара

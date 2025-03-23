@@ -28,7 +28,9 @@ data class ProductResponse(
 
     val isDemanded: Boolean, // флаг востребованности
     val measurementUnitId: Long, // ID единицы измерения
-    val measurementUnit: MeasurementUnitResponse?, // Связь с единицей измерения
+    val measurementUnitList: MeasurementUnitResponse?, // Связь с единицей измерения
+    val measurementUnit: String?,
+    val measurementUnitAbbreviation: String?,
 
     val productCodes: List<ProductCodeResponse> = emptyList(), // список кодов товара (штрих-коды, QR-коды).
     val productLinks: List<ProductLinkResponse> = emptyList(), // список интернет-ссылок.

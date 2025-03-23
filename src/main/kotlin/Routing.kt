@@ -319,7 +319,7 @@ fun Application.configureRouting() {
             val supplierId = call.parameters["supplierId"]?.toLongOrNull()
 
             if (productId != null && supplierId != null) {
-                ProductDao.insertProductSuppliers(productId, listOf(ProductSupplierResponse(null, productId, supplierId)))
+//                ProductDao.insertProductSuppliers(productId, listOf(ProductSupplierResponse(null, productId, supplierId)))
                 call.respond(HttpStatusCode.OK, "Поставщик $supplierId добавлен к товару $productId")
             } else {
                 call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара или поставщика")
