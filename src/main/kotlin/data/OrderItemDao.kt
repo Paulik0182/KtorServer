@@ -34,17 +34,17 @@ object OrderItemDao {
      * val items = OrderItemDao.getItemsByOrder(1)
      * Получим все товары из заказа с id = 1.
      */
-    fun getItemsByOrder(orderId: Int): List<ResultRow> = transaction {
-        OrderItems
-            .innerJoin(Products)
-            .selectAll().where { OrderItems.orderId eq orderId }
-            .toList()
-    }
+//    fun getItemsByOrder(orderId: Int): List<ResultRow> = transaction {
+//        OrderItems
+//            .innerJoin(Products)
+//            .selectAll().where { OrderItems.orderId eq orderId }
+//            .toList()
+//    }
 
     // Удалить все товары из заказа
-    fun deleteItemsByOrder(orderId: Int) = transaction {
-        OrderItems.deleteWhere { OrderItems.orderId eq orderId }
-    }
+//    fun deleteItemsByOrder(orderId: Int) = transaction {
+//        OrderItems.deleteWhere { OrderItems.orderId eq orderId }
+//    }
 
     /**
      * Добавление товара в заказ
@@ -84,12 +84,12 @@ object OrderItemDao {
      * Количество 10 шт.
      * Метод вернет ID новой записи.
      */
-    fun insert(orderId: Int, productId: Int, supplierId: Int, quantity: Int): Int = transaction {
-        OrderItems.insert {
-            it[OrderItems.orderId] = orderId
-            it[OrderItems.productId] = productId
-            it[OrderItems.supplierId] = supplierId
-            it[OrderItems.quantity] = quantity
-        } get OrderItems.id
-    }
+//    fun insert(orderId: Int, productId: Int, supplierId: Int, quantity: Int): Int = transaction {
+//        OrderItems.insert {
+//            it[OrderItems.orderId] = orderId
+//            it[OrderItems.productId] = productId
+//            it[OrderItems.supplierId] = supplierId
+//            it[OrderItems.quantity] = quantity
+//        } get OrderItems.id
+//    }
 }

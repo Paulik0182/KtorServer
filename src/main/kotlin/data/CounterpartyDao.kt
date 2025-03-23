@@ -34,11 +34,11 @@ object CounterpartyDao {
      * Если строка найдена → возвращает ResultRow (контрагент).
      * Если строки нет → возвращает null.
      */
-    fun getById(id: Int): ResultRow? = transaction {
-        Counterparties
-            .selectAll().where { Counterparties.id eq id }
-            .singleOrNull()
-    }
+//    fun getById(id: Int): ResultRow? = transaction {
+//        Counterparties
+//            .selectAll().where { Counterparties.id eq id }
+//            .singleOrNull()
+//    }
 
     /**
      * Добавление нового контрагента
@@ -48,12 +48,12 @@ object CounterpartyDao {
      * it[Counterparties.type] = type — записываем тип (например, "поставщик" или "клиент").
      * .get(Counterparties.id) — получаем ID вновь созданного контрагента.
      */
-    fun insert(name: String, type: String): Int = transaction {
-        Counterparties.insert {
-            it[Counterparties.name] = name
-            it[Counterparties.type] = type
-        } get Counterparties.id
-    }
+//    fun insert(name: String, type: String): Int = transaction {
+//        Counterparties.insert {
+//            it[Counterparties.name] = name
+//            it[Counterparties.type] = type
+//        } get Counterparties.id
+//    }
 
     /**
      * Удаление контрагента
@@ -64,9 +64,9 @@ object CounterpartyDao {
      * Возвращает:
      * Ничего (Unit). Просто удаляет запись.
      */
-    fun delete(id: Int) = transaction {
-        Counterparties.deleteWhere { Counterparties.id eq id }
-    }
+//    fun delete(id: Int) = transaction {
+//        Counterparties.deleteWhere { Counterparties.id eq id }
+//    }
 
     /**
      * Удаление контрагента с очисткой связей
@@ -81,11 +81,11 @@ object CounterpartyDao {
      * Если поставщик связан с товарами в product_suppliers, то обычный delete() вызовет ошибку из-за внешних ключей.
      * deleteWithProducts() сначала очищает связи, а потом удаляет контрагента.
      */
-    fun deleteWithProducts(id: Int) = transaction {
-        // Удаляем связь поставщика с товарами перед удалением
-        ProductSuppliers.deleteWhere { ProductSuppliers.supplierId eq id }
-        Counterparties.deleteWhere { Counterparties.id eq id }
-    }
+//    fun deleteWithProducts(id: Int) = transaction {
+//        // Удаляем связь поставщика с товарами перед удалением
+//        ProductSuppliers.deleteWhere { ProductSuppliers.supplierId eq id }
+//        Counterparties.deleteWhere { Counterparties.id eq id }
+//    }
 
     /**
      * Получение товаров, поставляемых поставщиком
@@ -100,17 +100,17 @@ object CounterpartyDao {
      * Возвращает:
      * Список всех товаров, поставляемых данным поставщиком.
      */
-    fun getProductsBySupplier(supplierId: Int): List<ResultRow> = transaction {
-        ProductSuppliers
-            .innerJoin(Products)
-            .selectAll().where { ProductSuppliers.supplierId eq supplierId }
-            .toList()
-    }
-
-    fun update(id: Int, name: String, type: String) = transaction {
-        Counterparties.update({ Counterparties.id eq id }) {
-            it[Counterparties.name] = name
-            it[Counterparties.type] = type
-        }
-    }
+//    fun getProductsBySupplier(supplierId: Int): List<ResultRow> = transaction {
+//        ProductSuppliers
+//            .innerJoin(Products)
+//            .selectAll().where { ProductSuppliers.supplierId eq supplierId }
+//            .toList()
+//    }
+//
+//    fun update(id: Int, name: String, type: String) = transaction {
+//        Counterparties.update({ Counterparties.id eq id }) {
+//            it[Counterparties.name] = name
+//            it[Counterparties.type] = type
+//        }
+//    }
 }

@@ -1,11 +1,11 @@
-package com.example.data.dto
+package com.example.data.dto.product
 
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class ProductImageResponse(
-    val id: Int,
-    val productId: Int,
+    val id: Long? = null,
+    val productId: Long,
     val imageBase64: String // Изображение в base64
 )
 

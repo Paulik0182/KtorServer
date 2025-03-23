@@ -41,12 +41,12 @@ object ProductSupplierDao {
      * val suppliers = ProductSupplierDao.getSuppliersByProduct(3)
      * Найдет всех поставщиков товара с ID = 3.
      */
-    fun getSuppliersByProduct(productId: Int): List<ResultRow> = transaction {
-        ProductSuppliers
-            .innerJoin(Counterparties)
-            .selectAll().where { ProductSuppliers.productId eq productId }
-            .toList()
-    }
+//    fun getSuppliersByProduct(productId: Int): List<ResultRow> = transaction {
+//        ProductSuppliers
+//            .innerJoin(Counterparties)
+//            .selectAll().where { ProductSuppliers.productId eq productId }
+//            .toList()
+//    }
 
     /**
      * Добавление связи товара и поставщика
@@ -71,12 +71,12 @@ object ProductSupplierDao {
      * ProductSupplierDao.insert(3, 5)
      * Товар с ID = 3 теперь связан с поставщиком с ID = 5.
      */
-    fun addSupplierToProduct(productId: Int, supplierId: Int) = transaction {
-        ProductSuppliers.insert {
-            it[ProductSuppliers.productId] = productId
-            it[ProductSuppliers.supplierId] = supplierId
-        }
-    }
+//    fun addSupplierToProduct(productId: Int, supplierId: Int) = transaction {
+//        ProductSuppliers.insert {
+//            it[ProductSuppliers.productId] = productId
+//            it[ProductSuppliers.supplierId] = supplierId
+//        }
+//    }
 
     /**
      * Удаление связи товара и поставщика
@@ -99,9 +99,9 @@ object ProductSupplierDao {
      * ProductSupplierDao.removeSupplierFromProduct(3, 5)
      * Теперь товар с ID = 3 больше не привязан к поставщику с ID = 5.
      */
-    fun removeSupplierFromProduct(productId: Int, supplierId: Int) = transaction {
-        ProductSuppliers.deleteWhere {
-            (ProductSuppliers.productId eq productId) and (ProductSuppliers.supplierId eq supplierId)
-        }
-    }
+//    fun removeSupplierFromProduct(productId: Int, supplierId: Int) = transaction {
+//        ProductSuppliers.deleteWhere {
+//            (ProductSuppliers.productId eq productId) and (ProductSuppliers.supplierId eq supplierId)
+//        }
+//    }
 }

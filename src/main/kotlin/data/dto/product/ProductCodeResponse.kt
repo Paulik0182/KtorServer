@@ -1,10 +1,10 @@
-package com.example.data.dto
+package com.example.data.dto.product
 
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class ProductCodeResponse(
-    val productId: Int,
+    val productId: Long,
     val code: String
 )
 

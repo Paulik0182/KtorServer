@@ -32,11 +32,11 @@ object OrderDao {
      * .singleOrNull() — если найдена только одна строка, возвращает её, иначе null.
      * Возвращает один заказ, если найден, или null, если такого ID нет.
      */
-    fun getById(id: Int): ResultRow? = transaction {
-        Orders
-            .selectAll().where { Orders.id eq id }
-            .singleOrNull()
-    }
+//    fun getById(id: Int): ResultRow? = transaction {
+//        Orders
+//            .selectAll().where { Orders.id eq id }
+//            .singleOrNull()
+//    }
 
     /**
      * создает новый заказ и возвращает его ID.
@@ -46,11 +46,11 @@ object OrderDao {
      * get Orders.id — получает автоматически сгенерированный ID нового заказа.
      * Создает новый заказ и возвращает его id.
      */
-    fun insert(counterpartyId: Int): Int = transaction {
-        Orders.insert {
-            it[Orders.counterpartyId] = counterpartyId
-        } get Orders.id
-    }
+//    fun insert(counterpartyId: Int): Int = transaction {
+//        Orders.insert {
+//            it[Orders.counterpartyId] = counterpartyId
+//        } get Orders.id
+//    }
 
     /**
      * удаляет заказ по ID.
@@ -58,9 +58,9 @@ object OrderDao {
      * Orders.deleteWhere { Orders.id eq id } — удаляет заказ, если id совпадает.
      * Удаляет заказ только из orders, но не удаляет связанные товары в order_items.
      */
-    fun delete(id: Int) = transaction {
-        Orders.deleteWhere { Orders.id eq id }
-    }
+//    fun delete(id: Int) = transaction {
+//        Orders.deleteWhere { Orders.id eq id }
+//    }
 
     /**
      * удаляет заказ и все связанные с ним товары в order_items.
@@ -69,11 +69,11 @@ object OrderDao {
      * Orders.deleteWhere { Orders.id eq id } — затем удаляем сам заказ.
      * Гарантирует, что перед удалением заказа очищаются все связанные записи в order_items.
      */
-    fun deleteWithItems(id: Int) = transaction {
-        // Удаляем все элементы заказа перед удалением самого заказа
-        OrderItems.deleteWhere { OrderItems.orderId eq id }
-        Orders.deleteWhere { Orders.id eq id }
-    }
+//    fun deleteWithItems(id: Int) = transaction {
+//        // Удаляем все элементы заказа перед удалением самого заказа
+//        OrderItems.deleteWhere { OrderItems.orderId eq id }
+//        Orders.deleteWhere { Orders.id eq id }
+//    }
 
     /**
      * получает список товаров для конкретного заказа.
@@ -83,12 +83,12 @@ object OrderDao {
      * .toList() — преобразует в список.
      * Возвращает список товаров, включенных в указанный заказ.
      */
-    fun getOrderItems(orderId: Int): List<ResultRow> = transaction {
-        OrderItems
-            .innerJoin(Products)
-            .selectAll().where { OrderItems.orderId eq orderId }
-            .toList()
-    }
+//    fun getOrderItems(orderId: Int): List<ResultRow> = transaction {
+//        OrderItems
+//            .innerJoin(Products)
+//            .selectAll().where { OrderItems.orderId eq orderId }
+//            .toList()
+//    }
 
     /**
      * Обновление контрагента заказа
@@ -96,9 +96,9 @@ object OrderDao {
      * Orders.update({ Orders.id eq id }) — выполняем UPDATE в таблице Orders, находя запись по id.
      * { Orders.id eq id } — фильтр, указывающий какую строку обновлять (WHERE id = ?).
      */
-    fun update(id: Int, counterpartyId: Int) = transaction {
-        Orders.update({ Orders.id eq id }) {
-            it[Orders.counterpartyId] = counterpartyId
-        }
-    }
+//    fun update(id: Int, counterpartyId: Int) = transaction {
+//        Orders.update({ Orders.id eq id }) {
+//            it[Orders.counterpartyId] = counterpartyId
+//        }
+//    }
 }

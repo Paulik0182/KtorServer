@@ -2,13 +2,16 @@ package com.example
 
 import com.example.data.*
 import com.example.data.dto.*
+import com.example.data.dto.counterparty.CounterpartyResponse
+import com.example.data.dto.order.OrderItemResponse
+import com.example.data.dto.order.OrderResponse
+import com.example.data.dto.product.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.Base64
@@ -52,347 +55,317 @@ fun Application.configureRouting() {
         }
 
         /**
-         * TODO Получить список всех товаров  !!Переделан!!
-         */
+        * TODO Получить список всех товаров  !!Переделан!!
+         * */
         get("/products") {
             try {
                 val products = ProductDao.getAll()
                 call.respond(products)
             } catch (e: Exception) {
                 e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
             }
         }
+        // Тестовый запрос: http://127.0.0.1:8080/products
 
         /**
          * TODO Получить товар по ID  !!Переделан!!
          */
         get("/products/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull() ?: return@get call.respond(
-                HttpStatusCode.BadRequest, "Неверный ID продукта"
-            )
+            val id = call.parameters["id"]?.toLongOrNull()
+                ?: return@get call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара")
 
             try {
-                val product = ProductDao.getById(id) ?: return@get call.respond(
-                    HttpStatusCode.NotFound, "Продукт не найден"
-                )
-                call.respond(product)
+                val product = ProductDao.getById(id)
+                if (product != null) {
+                    call.respond(product)
+                } else {
+                    call.respond(HttpStatusCode.NotFound, "Товар не найден")
+                }
+//                val product = ProductDao.getById(id) ?: return@get call.respond(
+//                    HttpStatusCode.NotFound, "Продукт не найден"
+//                )
+//                call.respond(product)
             } catch (e: Exception) {
                 e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
             }
         }
+        // Тестовый запрос: http://127.0.0.1:8080/products/5
+
+//                val product = call.receive<ProductResponse>() // Безопасный способ десериализации
+//                val id = ProductDao.insert(
+//                    product.name,
+//                    product.description,
+//                    product.price,
+//                    product.totalStockQuantity,
+//                    product.minStockQuantity,
+//                    product.productCodes,
+//                    product.isDemanded,
+//                    product.productLinks,
+//                    product.productCounterparties,
+//                    product.images,
+//                    product.categories,
+//                    product.subcategories
+//                )
 
         /**
          * TODO Добавить товар !!Переделан!!
-         *
-         * Пример запроса:
-         * POST /products
-         * {
-         *   "name": "Мышь",
-         *   "description": "Игровая мышь",
-         *   "price": "49.99"
-         * }
          */
         post("/products") {
             try {
-                val product = call.receive<ProductResponse>() // Безопасный способ десериализации
-                val id = ProductDao.insert(
-                    product.name,
-                    product.description,
-                    product.price,
-                    product.stockQuantity,
-                    product.minStockQuantity,
-                    product.productCodes,
-                    product.isDemanded,
-                    product.productLinks,
-                    product.locations,
-                    product.images,
-                    product.categories,
-                    product.subcategories
-                )
-                call.respond("Продукт создан с ID = $id")
-            } catch (e: Exception) {
-                println("Ошибка в POST /products: ${e.localizedMessage}")
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка при создании: ${e.localizedMessage}")
-            }
-        }
-
-        get("/warehouse_locations") {
-            try {
-                val locations = transaction {
-                    WarehouseLocations.selectAll().map {
-                        WarehouseLocationResponse(
-                            id = it[WarehouseLocations.id],
-                            counterpartyId = it[WarehouseLocations.counterpartyId],
-                            locationCode = it[WarehouseLocations.locationCode]
-                        )
-                    }
-                }
-                call.respond(locations)
+                val product = call.receive<ProductResponse>()
+                val id = ProductDao.insert(product)
+                call.respond(HttpStatusCode.Created, "Продукт создан с ID = $id")
             } catch (e: Exception) {
                 e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
             }
         }
+        // Тестовый запрос (cURL):
+        // curl -X POST http://127.0.0.1:8080/products -H "Content-Type: application/json" -d '{...}'
 
-        post("/warehouse_locations") {
+        // Получение кодов товара
+        get("/products/{id}/codes") {
+            val productId = call.parameters["id"]?.toLongOrNull()
+                ?: return@get call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+
             try {
-                val params = call.receive<Map<String, String>>()
-                val counterpartyId = params["counterpartyId"]?.toIntOrNull() ?: return@post call.respond(
-                    HttpStatusCode.BadRequest,
-                    "Некорректный ID контрагента"
-                )
-                val locationCode = params["locationCode"] ?: return@post call.respond(
-                    HttpStatusCode.BadRequest,
-                    "Код склада обязателен"
-                )
-
-                val id = WarehouseLocationDao.insert(counterpartyId, locationCode)
-                call.respond("Местоположение склада создано с ID = $id")
+                val codes = ProductDao.getProductCodes(productId)
+                call.respond(codes)
             } catch (e: Exception) {
                 e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
             }
         }
+        // Тестовый запрос: http://127.0.0.1:8080/products/5/codes
 
-        get("/products/{id}/locations") {
-            val productId = call.parameters["id"]?.toIntOrNull() ?: return@get call.respond(
-                HttpStatusCode.BadRequest, "Неверный ID продукта"
-            )
-            try {
-                val locations = transaction {
-                    ProductLocations.innerJoin(WarehouseLocations)
-                        .selectAll().where { ProductLocations.productId eq productId }
-                        .map {
-                            WarehouseLocationResponse(
-                                id = it[WarehouseLocations.id],
-                                counterpartyId = it[WarehouseLocations.counterpartyId],
-                                locationCode = it[WarehouseLocations.locationCode]
-                            )
-                        }
-                }
-                call.respond(locations)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
-            }
-        }
+//                val images = transaction {
+//                    ProductImages.selectAll().where { ProductImages.productId eq productId }
+//                        .map {
+//                            ProductImageResponse(
+//                                id = it[ProductImages.id],
+//                                productId = it[ProductImages.productId],
+//                                imageBase64 = Base64.getEncoder().encodeToString(it[ProductImages.imageBase64])
+//                            )
+//                        }
 
+        // 🔹 Получение изображений товара
         get("/products/{id}/images") {
-            val productId = call.parameters["id"]?.toIntOrNull() ?: return@get call.respond(
-                HttpStatusCode.BadRequest, "Неверный ID продукта"
-            )
+            val productId = call.parameters["id"]?.toLongOrNull()
+                ?: return@get call.respond(HttpStatusCode.BadRequest, "Некорректный ID продукта")
+
             try {
-                val images = transaction {
-                    ProductImages.selectAll().where { ProductImages.productId eq productId }
-                        .map {
-                            ProductImageResponse(
-                                id = it[ProductImages.id],
-                                productId = it[ProductImages.productId],
-                                imageBase64 = Base64.getEncoder().encodeToString(it[ProductImages.image])
-                            )
-                        }
-                }
+                val images = ProductDao.getProductImages(productId)
                 call.respond(images)
             } catch (e: Exception) {
                 e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
             }
         }
+        // Тестовый запрос: http://127.0.0.1:8080/products/5/images
 
+        // 🔹 Добавление изображения
         post("/products/{id}/images") {
-            val productId = call.parameters["id"]?.toIntOrNull() ?: return@post call.respond(
-                HttpStatusCode.BadRequest,
-                "Некорректный ID продукта"
-            )
-            val params = call.receive<Map<String, String>>()
-            val imageBase64 =
-                params["image"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Отсутствует изображение")
+            val productId = call.parameters["id"]?.toLongOrNull()
+                ?: return@post call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара")
 
-            val imageBytes = Base64.getDecoder().decode(imageBase64)
             try {
-                val id = ProductImageDao.insert(productId, imageBytes)
-                call.respond("Изображение добавлено с ID = $id")
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, e.message ?: "Ошибка загрузки изображения")
-            }
-        }
+                val params = call.receive<Map<String, String>>()
+                val imageBase64 = params["image"]
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, "Отсутствует изображение")
 
-        get("/products/{id}/links") {
-            val productId = call.parameters["id"]?.toIntOrNull() ?: return@get call.respond(
-                HttpStatusCode.BadRequest, "Неверный ID продукта"
-            )
-            try {
-                val links = transaction {
-                    ProductLinks.selectAll().where { ProductLinks.productId eq productId }
-                        .map {
-                            ProductLinkResponse(
-                                id = it[ProductLinks.id],
-                                productId = it[ProductLinks.productId],
-                                counterpartyId = it[ProductLinks.counterpartyId],
-                                url = it[ProductLinks.url]
-                            )
-                        }
-                }
-                call.respond(links)
+                val imageBytes = Base64.getDecoder().decode(imageBase64)
+                val id = ProductDao.insertProductImages(productId, listOf(ProductImageResponse(null, productId, imageBase64)))
+//                val id = ProductImageDao.insert(productId, imageBytes)
+                call.respond(HttpStatusCode.Created, "Изображение добавлено с ID = $id")
             } catch (e: Exception) {
-                e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
             }
         }
+        // Тестовый запрос (cURL):
+        // curl -X POST http://127.0.0.1:8080/products/5/images -H "Content-Type: application/json" -d '{"image": "..." }'
 
-        post("/products/{id}/links") {
-            val productId = call.parameters["id"]?.toIntOrNull() ?: return@post call.respond(
-                HttpStatusCode.BadRequest,
-                "Некорректный ID продукта"
-            )
-            val params = call.receive<Map<String, String>>()
-            val counterpartyId = params["counterpartyId"]?.toIntOrNull() ?: return@post call.respond(
-                HttpStatusCode.BadRequest,
-                "Некорректный ID контрагента"
-            )
-            val url = params["url"] ?: return@post call.respond(HttpStatusCode.BadRequest, "URL обязателен")
+//        get("/products/{id}/links") {
+//            val productId = call.parameters["id"]?.toIntOrNull() ?: return@get call.respond(
+//                HttpStatusCode.BadRequest, "Неверный ID продукта"
+//            )
+//            try {
+//                val links = transaction {
+//                    ProductLinks.selectAll().where { ProductLinks.productId eq productId }
+//                        .map {
+//                            ProductLinkResponse(
+//                                id = it[ProductLinks.id],
+//                                productId = it[ProductLinks.productId],
+//                                counterpartyId = it[ProductLinks.counterpartyId],
+//                                url = it[ProductLinks.url]
+//                            )
+//                        }
+//                }
+//                call.respond(links)
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//                call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
+//            }
+//        }
+//
+//        post("/products/{id}/links") {
+//            val productId = call.parameters["id"]?.toIntOrNull() ?: return@post call.respond(
+//                HttpStatusCode.BadRequest,
+//                "Некорректный ID продукта"
+//            )
+//            val params = call.receive<Map<String, String>>()
+//            val counterpartyId = params["counterpartyId"]?.toIntOrNull() ?: return@post call.respond(
+//                HttpStatusCode.BadRequest,
+//                "Некорректный ID контрагента"
+//            )
+//            val url = params["url"] ?: return@post call.respond(HttpStatusCode.BadRequest, "URL обязателен")
+//
+//            val id = ProductLinkDao.insert(productId, counterpartyId, url)
+//            call.respond("Ссылка добавлена с ID = $id")
+//        }
 
-            val id = ProductLinkDao.insert(productId, counterpartyId, url)
-            call.respond("Ссылка добавлена с ID = $id")
-        }
-
-        // Удалить товар
+        // Удаление товара
         delete("/products/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull()
-            if (id != null) {
+            val id = call.parameters["id"]?.toLongOrNull()
+                ?: return@delete call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара")
+
+            try {
                 ProductDao.delete(id)
-                call.respond("Товар $id удалён")
-            } else {
-                call.respond("Неверный ID товара")
-            }
-        }
-
-        /**
-         * Удаление товара с очисткой связей
-         */
-        delete("/products/{id}") {
-            val id = call.parameters["id"]?.toIntOrNull()
-            if (id != null) {
-                ProductDao.deleteWithSuppliers(id)
-                call.respond("Продукт удалён")
-            } else {
-                call.respond("Неверный ID")
-            }
-        }
-        // http://127.0.0.1:8080/products/55
-
-        // TODO Обновить данные товара  !!Переделан!!
-        put("/products/{id}") {
-            try {
-                val id = call.parameters["id"]?.toIntOrNull() ?: return@put call.respond(
-                    HttpStatusCode.BadRequest,
-                    "Некорректный ID"
-                )
-                val product = call.receive<ProductResponse>()
-
-                // Логируем полученные данные
-                println("Обновление продукта: ID=$id, Name=${product.name}, Categories=${product.categories}, Subcategories=${product.subcategories}")
-
-                ProductDao.update(
-                    id,
-                    product.name,
-                    product.description,
-                    product.price,
-                    product.stockQuantity,
-                    product.minStockQuantity,
-                    product.productCodes,
-                    product.isDemanded,
-                    product.productLinks,
-                    product.locations,
-                    product.images,
-                    product.categories,
-                    product.subcategories
-                )
-
-                call.respond(HttpStatusCode.OK, "Продукт $id обновлен")
-
+                call.respond(HttpStatusCode.OK, "Товар удален")
             } catch (e: Exception) {
-                println("Ошибка в PUT /products: ${e.localizedMessage}")
                 e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
             }
         }
+        // Тестовый запрос: DELETE http://127.0.0.1:8080/products/5
+
+//        /**
+//         * Удаление товара с очисткой связей
+//         */
+//        delete("/products/{id}") {
+//            val id = call.parameters["id"]?.toIntOrNull()
+//            if (id != null) {
+//                ProductDao.deleteWithSuppliers(id)
+//                call.respond("Продукт удалён")
+//            } else {
+//                call.respond("Неверный ID")
+//            }
+//        }
+//        // http://127.0.0.1:8080/products/55
+
+//                ProductDao.update(
+//                    id,
+//                    product.name,
+//                    product.description,
+//                    product.price,
+//                    product.totalStockQuantity,
+//                    product.minStockQuantity,
+//                    product.productCodes,
+//                    product.isDemanded,
+//                    product.productLinks,
+//                    product.productCounterparties,
+//                    product.images,
+//                    product.categories,
+//                    product.subcategories
+//                )
 
         /**
-         * Получить поставщиков товара
-         *
-         * Маршрут возвращает список поставщиков для конкретного товара.
-         * val id = call.parameters["id"]?.toIntOrNull()
-         *
-         * Получаем id товара из URL (/products/5/suppliers → id = 5).
-         * Преобразуем в Int. Если ошибка – null.
-         * if (id != null) {
-         * Проверяем, передан ли корректный ID товара.
-         * val suppliers = ProductSupplierDao.getSuppliersByProduct(id)
-         *
-         * Вызываем метод getSuppliersByProduct(id), который:
-         * Ищет всех поставщиков, привязанных к товару.
-         * call.respond(suppliers.map { it[Counterparties.name] })
-         *
-         * Отправляем список названий поставщиков.
-         * Как вызвать?
-         * http://127.0.0.1:8080/products/3/suppliers
-         * Ответ: ["Компания A", "Компания B"]
+         * TODO Обновить данные товара  !!Переделан!!
+         */
+        put("/products/{id}") {
+            val id = call.parameters["id"]?.toLongOrNull()
+                ?: return@put call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара")
+
+            try {
+                val product = call.receive<ProductResponse>()
+                // Логируем полученные данные
+                println("Обновление продукта: ID=$id, Name=${product.name}, Categories=${product.categories}")
+
+                ProductDao.update(id, product)
+                call.respond(HttpStatusCode.OK, "Продукт $id обновлен")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
+            }
+        }
+        // Тестовый запрос (cURL):
+        // curl -X PUT http://127.0.0.1:8080/products/5 -H "Content-Type: application/json" -d '{...}'
+
+        /**
+         * Получение поставщиков товара
          */
         get("/products/{id}/suppliers") {
-            val id = call.parameters["id"]?.toIntOrNull()
-            if (id != null) {
-                val suppliers = ProductSupplierDao.getSuppliersByProduct(id)
-                call.respond(suppliers.map { it[Counterparties.name] })
-            } else {
-                call.respond("Неверный ID")
+            val productId = call.parameters["id"]?.toLongOrNull()
+                ?: return@get call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+
+            try {
+                val suppliers = ProductDao.getProductSuppliers(productId)
+                call.respond(suppliers)
+//                call.respond(suppliers.map { it[Counterparties.name] })
+            } catch (e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
             }
         }
+        // Тестовый запрос: http://127.0.0.1:8080/products/5/suppliers
 
-        // Добавить поставщика к товару
+        /**
+         * Добавление поставщика к товару
+         */
         post("/products/{productId}/suppliers/{supplierId}") {
             // Получаем ID товара и поставщика
-            val productId = call.parameters["productId"]?.toIntOrNull()
-            val supplierId = call.parameters["supplierId"]?.toIntOrNull()
+            val productId = call.parameters["productId"]?.toLongOrNull()
+            val supplierId = call.parameters["supplierId"]?.toLongOrNull()
 
             if (productId != null && supplierId != null) {
-                ProductSupplierDao.addSupplierToProduct(productId, supplierId)
-                call.respond("Поставщик $supplierId добавлен к товару $productId")
+                ProductDao.insertProductSuppliers(productId, listOf(ProductSupplierResponse(null, productId, supplierId)))
+                call.respond(HttpStatusCode.OK, "Поставщик $supplierId добавлен к товару $productId")
             } else {
-                call.respond("Неверный ID товара или поставщика")
+                call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара или поставщика")
             }
-            // POST /products/5/suppliers/3
-            // Ответ: "Поставщик 3 добавлен к товару 5"
         }
+        // Тестовый запрос: POST http://127.0.0.1:8080/products/5/suppliers/3
 
-        // Удалить поставщика от товара
-        delete("/products/{productId}/suppliers/{supplierId}") {
-            val productId = call.parameters["productId"]?.toIntOrNull()
-            val supplierId = call.parameters["supplierId"]?.toIntOrNull()
-            if (productId != null && supplierId != null) {
-                ProductSupplierDao.removeSupplierFromProduct(productId, supplierId)
-                call.respond("Поставщик $supplierId удалён от товара $productId")
-            } else {
-                call.respond("Неверный ID товара или поставщика")
-            }
-            // DELETE /products/5/suppliers/3
-            // Ответ: "Поставщик 3 удалён от товара 5"
-        }
+//        // Удалить поставщика от товара
+//        delete("/products/{productId}/suppliers/{supplierId}") {
+//            val productId = call.parameters["productId"]?.toIntOrNull()
+//            val supplierId = call.parameters["supplierId"]?.toIntOrNull()
+//            if (productId != null && supplierId != null) {
+//                ProductSupplierDao.removeSupplierFromProduct(productId, supplierId)
+//                call.respond("Поставщик $supplierId удалён от товара $productId")
+//            } else {
+//                call.respond("Неверный ID товара или поставщика")
+//            }
+//            // DELETE /products/5/suppliers/3
+//            // Ответ: "Поставщик 3 удалён от товара 5"
+//        }
 
+        // Удаление поставщика от товара
+//        delete("/products/{productId}/suppliers/{supplierId}") {
+//            val productId = call.parameters["productId"]?.toLongOrNull()
+//            val supplierId = call.parameters["supplierId"]?.toLongOrNull()
+//
+//            if (productId != null && supplierId != null) {
+//                ProductDao.removeSupplierFromProduct(productId, supplierId)
+//                call.respond(HttpStatusCode.OK, "Поставщик $supplierId удален от товара $productId")
+//            } else {
+//                call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара или поставщика")
+//            }
+//        }
+        // Тестовый запрос: DELETE http://127.0.0.1:8080/products/5/suppliers/3
 
         // Отправляем полный список контрагентов
         get("/counterparties") {
             try {
                 val counterparties = CounterpartyDao.getAll().map {
-                    CounterpartyResponse(
-                        id = it[Counterparties.id],
-                        name = it[Counterparties.name],
-                        type = it[Counterparties.type],
-                        isSupplier = it[Counterparties.isSupplier],
-                        productCount = it[Counterparties.productCount]
-                    )
+//                    CounterpartyResponse(
+//                        id = it[Counterparties.id],
+//                        name = it[Counterparties.name],
+//                        type = it[Counterparties.type],
+//                        isSupplier = it[Counterparties.isSupplier],
+//                        productCountOld = it[Counterparties.productCountOld]
+//                    )
                 }
                 call.respond(counterparties) // сериализуется корректно
             } catch (e: Exception) {
@@ -408,19 +381,19 @@ fun Application.configureRouting() {
             )
 
             try {
-                val counterparty = CounterpartyDao.getById(id) ?: return@get call.respond(
-                    HttpStatusCode.NotFound, "Контрагент не найден"
-                )
+//                val counterparty = CounterpartyDao.getById(id) ?: return@get call.respond(
+//                    HttpStatusCode.NotFound, "Контрагент не найден"
+//                )
 
-                call.respond(
-                    CounterpartyResponse(
-                        id = counterparty[Counterparties.id],
-                        name = counterparty[Counterparties.name],
-                        type = counterparty[Counterparties.type],
-                        isSupplier = counterparty[Counterparties.isSupplier],
-                        productCount = counterparty[Counterparties.productCount]
-                    )
-                )
+//                call.respond(
+//                    CounterpartyResponse(
+//                        id = counterparty[Counterparties.id],
+//                        name = counterparty[Counterparties.name],
+//                        type = counterparty[Counterparties.type],
+//                        isSupplier = counterparty[Counterparties.isSupplier],
+//                        productCountOld = counterparty[Counterparties.productCountOld]
+//                    )
+//                )
             } catch (e: Exception) {
                 e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
@@ -431,8 +404,8 @@ fun Application.configureRouting() {
         get("/counterparties/{id}/products") {
             val id = call.parameters["id"]?.toIntOrNull()
             if (id != null) {
-                val products = CounterpartyDao.getProductsBySupplier(id)
-                call.respond(products.map { it[Products.name] })
+//                val products = CounterpartyDao.getProductsBySupplier(id)
+//                call.respond(products.map { it[Products.name] })
             } else {
                 call.respond("Неверный ID")
             }
@@ -442,8 +415,8 @@ fun Application.configureRouting() {
         post("/counterparties") {
             try {
                 val counterparty = call.receive<CounterpartyResponse>() // Принимаем объект
-                val id = CounterpartyDao.insert(counterparty.name, counterparty.type)
-                call.respond(HttpStatusCode.Created, "Контрагент создан с ID = $id")
+//                val id = CounterpartyDao.insert(counterparty.name, counterparty.type)
+//                call.respond(HttpStatusCode.Created, "Контрагент создан с ID = $id")
             } catch (e: Exception) {
                 e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError, "Ошибка при добавлении: ${e.localizedMessage}")
@@ -454,8 +427,8 @@ fun Application.configureRouting() {
         delete("/counterparties/{id}") {
             val id = call.parameters["id"]?.toIntOrNull()
             if (id != null) {
-                CounterpartyDao.deleteWithProducts(id)
-                call.respond("Контрагент $id удалён")
+//                CounterpartyDao.deleteWithProducts(id)
+//                call.respond("Контрагент $id удалён")
             } else {
                 call.respond("Неверный ID контрагента")
             }
@@ -469,8 +442,8 @@ fun Application.configureRouting() {
                     "Некорректный ID"
                 )
                 val counterparty = call.receive<CounterpartyResponse>()
-                CounterpartyDao.update(id, counterparty.name, counterparty.type)
-                call.respond(HttpStatusCode.OK, "Контрагент $id обновлен")
+//                CounterpartyDao.update(id, counterparty.name, counterparty.type)
+//                call.respond(HttpStatusCode.OK, "Контрагент $id обновлен")
             } catch (e: Exception) {
                 e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
@@ -482,25 +455,25 @@ fun Application.configureRouting() {
             try {
                 call.respond(OrderDao.getAll().map { order ->
                     // Получаем контрагента
-                    val counterparty = CounterpartyDao.getById(order[Orders.counterpartyId])
+//                    val counterparty = CounterpartyDao.getById(order[Orders.counterpartyId])
 
-                    OrderResponse(
-                        id = order[Orders.id],
-                        orderDate = order[Orders.orderDate].toString(),
-                        counterpartyId = order[Orders.counterpartyId],
-                        counterpartyName = counterparty?.get(Counterparties.name)
-                            ?: "Неизвестный контрагент", // 🔹 Добавили!
-                        items = OrderItemDao.getItemsByOrder(order[Orders.id]).map { row ->
-                            OrderItemResponse(
-                                id = row[OrderItems.id],
-                                orderId = row[OrderItems.orderId],
-                                productId = row[OrderItems.productId],
-                                productName = row[Products.name],
-                                supplierId = row[OrderItems.supplierId],
-                                quantity = row[OrderItems.quantity]
-                            )
-                        }
-                    )
+//                    OrderResponse(
+//                        id = order[Orders.id],
+//                        orderDate = order[Orders.orderDate].toString(),
+//                        counterpartyId = order[Orders.counterpartyId],
+//                        counterpartyName = counterparty?.get(Counterparties.name)
+//                            ?: "Неизвестный контрагент", // 🔹 Добавили!
+//                        items = OrderItemDao.getItemsByOrder(order[Orders.id]).map { row ->
+//                            OrderItemResponse(
+//                                id = row[OrderItems.id],
+//                                orderId = row[OrderItems.orderId],
+//                                productId = row[OrderItems.productId],
+//                                productName = row[Products.name],
+//                                supplierId = row[OrderItems.supplierId],
+//                                quantity = row[OrderItems.quantity]
+//                            )
+//                        }
+//                    )
                 })
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -517,38 +490,38 @@ fun Application.configureRouting() {
             }
 
             try {
-                val order = OrderDao.getById(id)
-                if (order == null) {
-                    call.respond(HttpStatusCode.NotFound, "Заказ не найден")
-                    return@get
-                }
+//                val order = OrderDao.getById(id)
+//                if (order == null) {
+//                    call.respond(HttpStatusCode.NotFound, "Заказ не найден")
+//                    return@get
+//                }
 
                 // Получаем контрагента по ID
-                val counterparty = CounterpartyDao.getById(order[Orders.counterpartyId])
+//                val counterparty = CounterpartyDao.getById(order[Orders.counterpartyId])
 
                 // Получаем товары для заказа
-                val items = OrderItemDao.getItemsByOrder(id).map { item ->
-                    val product = ProductDao.getById(item[OrderItems.productId])
-                    OrderItemResponse(
-                        id = item[OrderItems.id],
-                        orderId = id,
-                        productId = item[OrderItems.productId],
-                        productName = product?.name ?: "Неизвестный продукт",
-                        supplierId = item[OrderItems.supplierId],
-                        quantity = item[OrderItems.quantity]
-                    )
-                }
+//                val items = OrderItemDao.getItemsByOrder(id).map { item ->
+//                    val product = ProductDao.getById(item[OrderItems.productId])
+//                    OrderItemResponse(
+//                        id = item[OrderItems.id],
+//                        orderId = id,
+//                        productId = item[OrderItems.productId],
+//                        productName = product?.name ?: "Неизвестный продукт",
+//                        supplierId = item[OrderItems.supplierId],
+//                        quantity = item[OrderItems.quantity]
+//                    )
+//                }
 
                 // Формируем полный ответ
-                val orderResponse = OrderResponse(
-                    id = order[Orders.id],
-                    orderDate = order[Orders.orderDate].toString(), // Преобразуем дату в строку
-                    counterpartyId = order[Orders.counterpartyId],
-                    counterpartyName = counterparty?.get(Counterparties.name) ?: "Неизвестный контрагент",
-                    items = items
-                )
+//                val orderResponse = OrderResponse(
+//                    id = order[Orders.id],
+//                    orderDate = order[Orders.orderDate].toString(), // Преобразуем дату в строку
+//                    counterpartyId = order[Orders.counterpartyId],
+//                    counterpartyName = counterparty?.get(Counterparties.name) ?: "Неизвестный контрагент",
+//                    items = items
+//                )
 
-                call.respond(orderResponse)
+//                call.respond(orderResponse)
             } catch (e: Exception) {
                 e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError, "Ошибка на сервере: ${e.localizedMessage}")
@@ -559,8 +532,8 @@ fun Application.configureRouting() {
         get("/orders/{id}/items") {
             val id = call.parameters["id"]?.toIntOrNull()
             if (id != null) {
-                val items = OrderDao.getOrderItems(id)
-                call.respond(items.map { it[Products.name] })
+//                val items = OrderDao.getOrderItems(id)
+//                call.respond(items.map { it[Products.name] })
             } else {
                 call.respond("Неверный ID")
             }
@@ -570,13 +543,13 @@ fun Application.configureRouting() {
         post("/orders") {
             try {
                 val request = call.receive<OrderResponse>()
-                val orderId = OrderDao.insert(request.counterpartyId)
+//                val orderId = OrderDao.insert(request.counterpartyId)
 
                 request.items.forEach { item ->
-                    OrderItemDao.insert(orderId, item.productId, item.supplierId, item.quantity)
+//                    OrderItemDao.insert(orderId, item.productId, item.supplierId, item.quantity)
                 }
 
-                call.respond(HttpStatusCode.Created, "Заказ $orderId создан")
+//                call.respond(HttpStatusCode.Created, "Заказ $orderId создан")
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
             }
@@ -590,12 +563,12 @@ fun Application.configureRouting() {
                 )
 
                 val request = call.receive<OrderResponse>()
-                OrderDao.update(id, request.counterpartyId)
+//                OrderDao.update(id, request.counterpartyId)
 
                 // Удаляем старые товары и добавляем новые
-                OrderItemDao.deleteItemsByOrder(id)
+//                OrderItemDao.deleteItemsByOrder(id)
                 request.items.forEach { item ->
-                    OrderItemDao.insert(id, item.productId, item.supplierId, item.quantity)
+//                    OrderItemDao.insert(id, item.productId, item.supplierId, item.quantity)
                 }
 
                 call.respond(HttpStatusCode.OK, "Заказ $id обновлен")
@@ -608,8 +581,8 @@ fun Application.configureRouting() {
         delete("/orders/{id}") {
             val id = call.parameters["id"]?.toIntOrNull()
             if (id != null) {
-                OrderDao.deleteWithItems(id)
-                call.respond("Заказ $id удалён")
+//                OrderDao.deleteWithItems(id)
+//                call.respond("Заказ $id удалён")
             } else {
                 call.respond("Неверный ID заказа")
             }
