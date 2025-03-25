@@ -24,7 +24,7 @@ object ProductCounterparties : Table("product_counterparties") {
     val stockQuantity = integer("stock_quantity").default(0)
     val role = varchar("role", 50)
     val minStockQuantity = integer("min_stock_quantity").default(0)
-    val warehouseLocationCodes = text("warehouse_location_codes").nullable() // JSONB
+    val warehouseLocationCodes = stringListJsonb("warehouse_location_codes").nullable()
     val measurementUnitId = long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
 
     override val primaryKey = PrimaryKey(productId, counterpartyId)
@@ -87,16 +87,16 @@ object ProductLinks : Table("product_links") {
     val id = long("id").autoIncrement()
     val productId = long("product_id").references(Products.id, onDelete = ReferenceOption.CASCADE)
     val counterpartyId = long("counterparty_id").references(Counterparties.id, onDelete = ReferenceOption.CASCADE)
-    val url = text("url")
+    val urlId = long("url_id").references(Urls.id)
 
     override val primaryKey = PrimaryKey(id)
 }
 
 object ProductCodes : Table("product_codes") {
     val productId = long("product_id").references(Products.id, onDelete = ReferenceOption.CASCADE)
-    val code = varchar("code", 50) // Код продукта, максимальная длина 50 символов
+    val codeId = long("code_id").references(Codes.id, onDelete = ReferenceOption.CASCADE)
 
-    override val primaryKey = PrimaryKey(productId, code) // Комбинированный первичный ключ
+    override val primaryKey = PrimaryKey(productId, codeId) // Комбинированный первичный ключ
 }
 
 object Categories : Table("categories") {
@@ -212,6 +212,20 @@ object CounterpartyContacts : Table("counterparty_contacts") {
     val contactType = varchar("contact_type", 50)
     val contactValue = varchar("contact_value", 100)
     val countryCodeId = long("country_code_id").references(Countries.id, onDelete = ReferenceOption.CASCADE)
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+object Urls : Table("urls") {
+    val id = long("id").autoIncrement()
+    val url = text("url")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+object Codes : Table("codes") {
+    val id = long("id").autoIncrement()
+    val code = varchar("code", 50) // Код продукта, максимальная длина 50 символов
 
     override val primaryKey = PrimaryKey(id)
 }

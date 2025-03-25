@@ -7,5 +7,7 @@ data class ProductLinkResponse(
     val id: Long? = null,
     val productId: Long?,
     val counterpartyId: Long?,
-    val url: String
+    val urlId: Long?,
+    val urlName: String?,
+    val url: List<UrlsResponse> = emptyList()
 )

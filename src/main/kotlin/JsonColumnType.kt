@@ -1,10 +1,9 @@
 package com.example
 
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.serializer
-import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.KSerializer
 import org.jetbrains.exposed.sql.ColumnType
-import kotlin.reflect.KClass
+import org.postgresql.util.PGobject
 
 /**
  * TODO Не используется!!!
@@ -23,7 +22,7 @@ import kotlin.reflect.KClass
  * T : Any — обобщенный тип, который должен быть @Serializable, так как используется kotlinx.serialization.
  * clazz: KClass<T> — передается KClass<T>, так как Exposed использует рефлексию для определения сериализатора.
  */
-class JsonColumnType<T : Any>(private val clazz: KClass<T>) : ColumnType<T>() {
+class JsonColumnType<T : Any>(private val serializer: KSerializer<T>) : ColumnType<T>() {
 
     /**
      * Возвращает тип данных JSONB, который используется в PostgreSQL.
@@ -37,12 +36,13 @@ class JsonColumnType<T : Any>(private val clazz: KClass<T>) : ColumnType<T>() {
      * Если значение — это String, десериализует его из JSON в объект T.
      * Если пришел другой тип, выбрасывает IllegalArgumentException.
      */
-    @OptIn(InternalSerializationApi::class)
     override fun valueFromDB(value: Any): T {
-        return when (value) {
-            is String -> Json.decodeFromString(clazz.serializer(), value) // Декодируем JSON-строку
-            else -> throw IllegalArgumentException("Unexpected value from DB: $value")
+        val jsonString = when (value) {
+            is String -> value
+            is PGobject -> value.value ?: ""
+            else -> throw IllegalArgumentException("Unsupported value: $value")
         }
+        return Json.decodeFromString(serializer, jsonString)
     }
 
     /**
@@ -51,9 +51,11 @@ class JsonColumnType<T : Any>(private val clazz: KClass<T>) : ColumnType<T>() {
      * Логика:
      * Преобразует объект T в JSON, который будет записан в PostgreSQL.
      */
-    @OptIn(InternalSerializationApi::class)
     override fun notNullValueToDB(value: T): Any {
-        return Json.encodeToString(clazz.serializer(), value) // Кодируем в JSON
+        val pg = PGobject()
+        pg.type = "jsonb"
+        pg.value = Json.encodeToString(serializer, value)
+        return pg
     }
 
     /**
@@ -63,8 +65,7 @@ class JsonColumnType<T : Any>(private val clazz: KClass<T>) : ColumnType<T>() {
      * Кодирует объект T в JSON.
      * Оборачивает его в одиночные кавычки, так как PostgreSQL требует этого в SQL-запросах.
      */
-    @OptIn(InternalSerializationApi::class)
     override fun nonNullValueToString(value: T): String {
-        return "'${Json.encodeToString(clazz.serializer(), value)}'" // SQL-совместимый формат
+        return "'${Json.encodeToString(serializer, value)}'" // SQL-совместимый формат
     }
 }

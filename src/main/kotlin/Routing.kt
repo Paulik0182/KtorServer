@@ -12,6 +12,7 @@ import io.ktor.server.plugins.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.plugins.ContentTransformationException
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.Base64
@@ -93,33 +94,19 @@ fun Application.configureRouting() {
         }
         // Тестовый запрос: http://127.0.0.1:8080/products/5
 
-//                val product = call.receive<ProductResponse>() // Безопасный способ десериализации
-//                val id = ProductDao.insert(
-//                    product.name,
-//                    product.description,
-//                    product.price,
-//                    product.totalStockQuantity,
-//                    product.minStockQuantity,
-//                    product.productCodes,
-//                    product.isDemanded,
-//                    product.productLinks,
-//                    product.productCounterparties,
-//                    product.images,
-//                    product.categories,
-//                    product.subcategories
-//                )
-
         /**
          * TODO Добавить товар !!Переделан!!
          */
         post("/products") {
             try {
-                val product = call.receive<ProductResponse>()
-                val id = ProductDao.insert(product)
-                call.respond(HttpStatusCode.Created, "Продукт создан с ID = $id")
-            } catch (e: Exception) {
-                e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
+                val product = call.receive<ProductCreateRequest>()
+                val newId = ProductDao.insert(product)
+                call.respond(HttpStatusCode.Created, mapOf("Продукт создан с ID = " to newId))
+            } catch (e: DuplicateProductNameException) {
+                call.respond(
+                    HttpStatusCode.Conflict, // 409 - конфликт данных
+                    mapOf("error" to "duplicate_name", "message" to e.message)
+                )
             }
         }
         // Тестовый запрос (cURL):
@@ -167,21 +154,21 @@ fun Application.configureRouting() {
 
         // 🔹 Добавление изображения
         post("/products/{id}/images") {
-            val productId = call.parameters["id"]?.toLongOrNull()
-                ?: return@post call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара")
-
-            try {
-                val params = call.receive<Map<String, String>>()
-                val imageBase64 = params["image"]
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, "Отсутствует изображение")
-
-                val imageBytes = Base64.getDecoder().decode(imageBase64)
-                val id = ProductDao.insertProductImages(productId, listOf(ProductImageResponse(null, productId, imageBase64)))
-//                val id = ProductImageDao.insert(productId, imageBytes)
-                call.respond(HttpStatusCode.Created, "Изображение добавлено с ID = $id")
-            } catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
-            }
+//            val productId = call.parameters["id"]?.toLongOrNull()
+//                ?: return@post call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара")
+//
+//            try {
+//                val params = call.receive<Map<String, String>>()
+//                val imageBase64 = params["image"]
+//                    ?: return@post call.respond(HttpStatusCode.BadRequest, "Отсутствует изображение")
+//
+//                val imageBytes = Base64.getDecoder().decode(imageBase64)
+//                val id = ProductDao.insertProductImages(productId, listOf(ProductImageResponse(null, productId, imageBase64)))
+////                val id = ProductImageDao.insert(productId, imageBytes)
+//                call.respond(HttpStatusCode.Created, "Изображение добавлено с ID = $id")
+//            } catch (e: Exception) {
+//                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
+//            }
         }
         // Тестовый запрос (cURL):
         // curl -X POST http://127.0.0.1:8080/products/5/images -H "Content-Type: application/json" -d '{"image": "..." }'
@@ -240,56 +227,30 @@ fun Application.configureRouting() {
         }
         // Тестовый запрос: DELETE http://127.0.0.1:8080/products/5
 
-//        /**
-//         * Удаление товара с очисткой связей
-//         */
-//        delete("/products/{id}") {
-//            val id = call.parameters["id"]?.toIntOrNull()
-//            if (id != null) {
-//                ProductDao.deleteWithSuppliers(id)
-//                call.respond("Продукт удалён")
-//            } else {
-//                call.respond("Неверный ID")
-//            }
-//        }
-//        // http://127.0.0.1:8080/products/55
-
-//                ProductDao.update(
-//                    id,
-//                    product.name,
-//                    product.description,
-//                    product.price,
-//                    product.totalStockQuantity,
-//                    product.minStockQuantity,
-//                    product.productCodes,
-//                    product.isDemanded,
-//                    product.productLinks,
-//                    product.productCounterparties,
-//                    product.images,
-//                    product.categories,
-//                    product.subcategories
-//                )
-
         /**
          * TODO Обновить данные товара  !!Переделан!!
          */
         put("/products/{id}") {
             val id = call.parameters["id"]?.toLongOrNull()
-                ?: return@put call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара")
+                ?: return@put call.respond(HttpStatusCode.BadRequest, mapOf("error" to "invalid_id", "message" to "Некорректный ID товара"))
 
             try {
-                val product = call.receive<ProductResponse>()
-                // Логируем полученные данные
+                val product = call.receive<ProductCreateRequest>()
                 println("Обновление продукта: ID=$id, Name=${product.name}, Categories=${product.categories}")
 
                 ProductDao.update(id, product)
-                call.respond(HttpStatusCode.OK, "Продукт $id обновлен")
+                call.respond(HttpStatusCode.OK, mapOf("message" to "Продукт $id успешно обновлён"))
+            } catch (e: IllegalArgumentException) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "invalid_data", "message" to e.localizedMessage))
+            } catch (e: ContentTransformationException) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "bad_request", "message" to "Невалидный JSON: ${e.localizedMessage}"))
+            } catch (e: CustomHttpException) {
+                call.respond(e.status, e.response)
             } catch (e: Exception) {
                 e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
+                call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "internal_error", "message" to e.localizedMessage))
             }
         }
-        // Тестовый запрос (cURL):
         // curl -X PUT http://127.0.0.1:8080/products/5 -H "Content-Type: application/json" -d '{...}'
 
         /**

@@ -5,6 +5,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ProductCodeResponse(
     val productId: Long,
-    val code: String
+    val codId: Long?,
+    val codeName: String,
+    val code: List<CodesResponse> = emptyList()
 )
 
