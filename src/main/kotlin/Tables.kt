@@ -232,3 +232,11 @@ object Codes : Table("codes") {
 
     override val primaryKey = PrimaryKey(id)
 }
+
+object ProductSubcategories : Table("product_subcategories") {
+    val productId = long("product_id").references(Products.id, onDelete = ReferenceOption.CASCADE)
+    val subcategoryId = long("subcategory_id").references(Subcategories.id, onDelete = ReferenceOption.CASCADE)
+
+    override val primaryKey = PrimaryKey(productId, subcategoryId)
+}
+

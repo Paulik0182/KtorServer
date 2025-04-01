@@ -3,6 +3,7 @@ package com.example.data.dto.product
 import com.example.data.dto.*
 import com.example.data.dto.dictionaries.CategoryResponse
 import com.example.data.dto.dictionaries.MeasurementUnitResponse
+import com.example.data.dto.dictionaries.SubcategoryResponse
 import com.example.data.dto.order.OrderItemResponse
 import com.example.utils.BigDecimalSerializer
 import kotlinx.serialization.Serializable
@@ -40,6 +41,8 @@ data class ProductResponse(
     val measurementUnits: List<MeasurementUnitResponse> = emptyList(), // Еденицы измерения
     val productOrderItem: List<OrderItemResponse> = emptyList(), // Информация о Заказах товара
     val categories: List<CategoryResponse> = emptyList(), // Категории - многоязычность
-    val subcategoryIds: List<Long> = emptyList(), // список подкатегорий (для фильтра)
+    val subcategoryIds: List<Long>? = emptyList(), // список подкатегорий (для фильтра)
     val categoryIds: List<Long> = emptyList(),
+    val subcategories: List<SubcategoryResponse> = emptyList()
+
 )
