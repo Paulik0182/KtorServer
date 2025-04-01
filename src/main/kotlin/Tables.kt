@@ -1,5 +1,6 @@
 package com.example
 
+import com.example.Categories.nullable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.CurrentTimestamp
@@ -102,6 +103,7 @@ object ProductCodes : Table("product_codes") {
 object Categories : Table("categories") {
     val id = long("id").autoIncrement()
     val name = varchar("name", 100)
+    val imageUrl = binary("image").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -154,6 +156,7 @@ object Subcategories : Table("subcategories") {
     val id = long("id").autoIncrement()
     val categoryId = long("category_id").references(Categories.id, onDelete = ReferenceOption.CASCADE)
     val name = varchar("name", 100)
+    val imageUrl = binary("image").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

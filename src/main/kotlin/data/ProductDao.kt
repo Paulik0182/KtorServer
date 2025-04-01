@@ -72,7 +72,9 @@ object ProductDao {
                     productCounterparties = getProductCounterparties(row[Products.id]),
                     productSuppliers = getProductSuppliers(row[Products.id]),
                     productOrderItem = getProductOrders(row[Products.id]),
-                    categories = getProductCategories(row[Products.id])
+                    categories = getProductCategories(row[Products.id]),
+                    categoryIds = getCategoryIds(row[Products.id]),
+                    subcategoryIds = getSubcategoryIds(row[Products.id])
                 )
             }
         } catch (e: Exception) {
@@ -115,7 +117,9 @@ object ProductDao {
                         productCounterparties = getProductCounterparties(productId),
                         productSuppliers = getProductSuppliers(productId),
                         productOrderItem = getProductOrders(productId),
-                        categories = getProductCategories(productId)
+                        categories = getProductCategories(productId),
+                        categoryIds = getCategoryIds(it[Products.id]),
+                        subcategoryIds = getSubcategoryIds(it[Products.id])
                     )
                 }
                 .singleOrNull()
@@ -182,7 +186,10 @@ object ProductDao {
         val currentProduct = Products
             .selectAll().where { Products.id eq productId }
             .firstOrNull()
-            ?: error(HttpStatusCode.NotFound, mapOf("error" to "not_found", "message" to "Продукт с ID $productId не найден"))
+            ?: error(
+                HttpStatusCode.NotFound,
+                mapOf("error" to "not_found", "message" to "Продукт с ID $productId не найден")
+            )
 
         val currentName = currentProduct[Products.name]
 
@@ -217,7 +224,10 @@ object ProductDao {
         }
 
         if (updatedCount == 0) {
-            error(HttpStatusCode.NotFound, mapOf("error" to "not_updated", "message" to "Не удалось обновить продукт с ID $productId"))
+            error(
+                HttpStatusCode.NotFound,
+                mapOf("error" to "not_updated", "message" to "Не удалось обновить продукт с ID $productId")
+            )
         }
 
         deleteProductDependencies(productId)
@@ -507,7 +517,9 @@ object ProductDao {
                     id = categoryId,
                     name = firstRow[Categories.name],  // Теперь безопасно
                     translations = translations,
-                    subcategories = subcategories
+                    subcategories = subcategories,
+                    imageUrl = firstRow.getOrNull(Categories.imageUrl)
+                        ?.let { "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(it) }
                 )
             }
         return@transaction categories
@@ -540,7 +552,10 @@ object ProductDao {
                     id = subcategoryId,
                     name = firstRow[Subcategories.name],
                     categoryId = firstRow[Subcategories.categoryId],
-                    translations = translations
+                    translations = translations,
+                    imageUrl = firstRow.getOrNull(Subcategories.imageUrl)
+                        ?.let { "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(it) }
+
                 )
             }
         return@transaction subcategories
@@ -593,5 +608,17 @@ object ProductDao {
                         .encodeToString(it[ProductImages.imageBase64]) // Преобразуем бинарные данные в Base64
                 )
             }
+    }
+
+    fun getCategoryIds(productId: Long): List<Long> = transaction {
+        ProductCategories
+            .selectAll().where { ProductCategories.productId eq productId }
+            .map { it[ProductCategories.categoryId] }
+    }
+
+    fun getSubcategoryIds(productId: Long): List<Long> = transaction {
+        getProductCategories(productId)
+            .flatMap { it.subcategories }
+            .mapNotNull { it.id }
     }
 }

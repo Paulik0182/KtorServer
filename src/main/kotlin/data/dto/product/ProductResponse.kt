@@ -23,7 +23,7 @@ data class ProductResponse(
     val hasSuppliers: Boolean, // Признак наличия поставщика
 
     val supplierCount: Int, // Количество поставщиков
-    val totalStockQuantity: Int, // количество товара на складе
+    val totalStockQuantity: Int, // количество товара на всех складах
     val minStockQuantity: Int, // неснижаемый остаток
 
     val isDemanded: Boolean, // флаг востребованности
@@ -40,4 +40,6 @@ data class ProductResponse(
     val measurementUnits: List<MeasurementUnitResponse> = emptyList(), // Еденицы измерения
     val productOrderItem: List<OrderItemResponse> = emptyList(), // Информация о Заказах товара
     val categories: List<CategoryResponse> = emptyList(), // Категории - многоязычность
+    val subcategoryIds: List<Long> = emptyList(), // список подкатегорий (для фильтра)
+    val categoryIds: List<Long> = emptyList(),
 )
