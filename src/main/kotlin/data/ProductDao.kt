@@ -22,22 +22,7 @@ object ProductDao {
      */
     fun getAll(): List<ProductResponse> = transaction {
         try {
-            val query = Products
-                .leftJoin(ProductCategories)
-                .leftJoin(ProductCodes)
-                .leftJoin(ProductImages)
-                .leftJoin(ProductLinks)
-                .leftJoin(ProductCounterparties)
-                .leftJoin(ProductSuppliers)
-                .select(
-                    Products.columns + // Все столбцы products
-                            ProductCategories.columns +
-                            ProductCodes.columns +
-                            ProductImages.columns +
-                            ProductLinks.columns +
-                            ProductCounterparties.columns +
-                            ProductSuppliers.columns
-                )
+            val query = Products.selectAll()
 
             println("SQL запрос выполнен. Получено строк: ${query.count()}")
 
@@ -45,13 +30,15 @@ object ProductDao {
                 println("row keys: ${row.fieldIndex.keys}") // Проверяем доступные ключи
                 println("Значение Products.name: ${row[Products.name] ?: "NULL"}")
 
+                val productId = row[Products.id]
+
                 val (unitName, unitAbbr) = getMeasurementUnitLocalized(
                     row[Products.measurementUnitId],
                     languageCode = "ru"
                 )
 
                 ProductResponse(
-                    id = row[Products.id],
+                    id = productId,
                     name = row.getOrNull(Products.name) ?: "Без названия", // Добавляем проверку null
                     description = row[Products.description] ?: "",
                     price = row[Products.price] ?: BigDecimal.ZERO,
@@ -66,16 +53,16 @@ object ProductDao {
                     measurementUnit = unitName,
                     measurementUnitAbbreviation = unitAbbr,
 
-                    productCodes = getProductCodes(row[Products.id]),
-                    productLinks = getProductLinks(row[Products.id]),
-                    productImages = getProductImages(row[Products.id]),
-                    productCounterparties = getProductCounterparties(row[Products.id]),
-                    productSuppliers = getProductSuppliers(row[Products.id]),
-                    productOrderItem = getProductOrders(row[Products.id]),
-                    categories = getProductCategories(row[Products.id]),
-                    categoryIds = getCategoryIds(row[Products.id]),
-                    subcategoryIds = getSubcategoryIds(row[Products.id]),
-                    subcategories = getProductSubcategories(row[Products.id])
+                    productCodes = getProductCodes(productId),
+                    productLinks = getProductLinks(productId),
+                    productImages = getProductImages(productId),
+                    productCounterparties = getProductCounterparties(productId),
+                    productSuppliers = getProductSuppliers(productId),
+                    productOrderItem = getProductOrders(productId),
+                    categories = getProductCategories(productId),
+                    categoryIds = getCategoryIds(productId),
+                    subcategoryIds = getSubcategoryIds(productId),
+                    subcategories = getProductSubcategories(productId)
                 )
             }
         } catch (e: Exception) {
@@ -89,26 +76,29 @@ object ProductDao {
      */
     fun getById(productId: Long): ProductResponse? = transaction {
         try {
-            Products.selectAll().where { Products.id eq productId }
-                .map {
-                    val (unitName, unitAbbr) = getMeasurementUnitLocalized(
-                        it[Products.measurementUnitId],
-                        languageCode = "ru"
-                    )
+            val row = Products
+                .selectAll()
+                .where { Products.id eq productId }
+                .firstOrNull() ?: return@transaction null
+
+            val (unitName, unitAbbr) = getMeasurementUnitLocalized(
+                row[Products.measurementUnitId],
+                languageCode = "ru"
+            )
 
                     ProductResponse(
-                        id = it[Products.id],
-                        name = it[Products.name],
-                        description = it[Products.description],
-                        price = it[Products.price],
-                        hasSuppliers = it[Products.hasSuppliers],
-                        supplierCount = it[Products.supplierCount],
-                        totalStockQuantity = it[Products.totalStockQuantity],
-                        minStockQuantity = it[Products.minStockQuantity],
-                        isDemanded = it[Products.isDemanded],
+                        id = row[Products.id],
+                        name = row[Products.name] ?: "Без названия",
+                        description = row[Products.description] ?: "",
+                        price = row[Products.price] ?: BigDecimal.ZERO,
+                        hasSuppliers = row[Products.hasSuppliers] ?: false,
+                        supplierCount = row[Products.supplierCount] ?: 0,
+                        totalStockQuantity = row[Products.totalStockQuantity] ?: 0,
+                        minStockQuantity = row[Products.minStockQuantity] ?: 0,
+                        isDemanded = row[Products.isDemanded] ?: true,
 
-                        measurementUnitId = it[Products.measurementUnitId],
-                        measurementUnitList = getMeasurementUnit(it[Products.measurementUnitId], "ru"),
+                        measurementUnitId = row[Products.measurementUnitId],
+                        measurementUnitList = getMeasurementUnit(row[Products.measurementUnitId], "ru"),
                         measurementUnit = unitName,
                         measurementUnitAbbreviation = unitAbbr,
 
@@ -119,12 +109,10 @@ object ProductDao {
                         productSuppliers = getProductSuppliers(productId),
                         productOrderItem = getProductOrders(productId),
                         categories = getProductCategories(productId),
-                        categoryIds = getCategoryIds(it[Products.id]),
-                        subcategoryIds = getSubcategoryIds(it[Products.id]),
+                        categoryIds = getCategoryIds(productId),
+                        subcategoryIds = getSubcategoryIds(productId),
                         subcategories = getProductSubcategories(productId)
                     )
-                }
-                .singleOrNull()
         } catch (e: Exception) {
             println("Ошибка в getById($id): ${e.localizedMessage}")
             throw e
