@@ -22,14 +22,10 @@ object ProductDao {
      */
     fun getAll(): List<ProductResponse> = transaction {
         try {
-            val query = Products.selectAll()
+            val productRows = Products.selectAll().toList()
+            println("Получено продуктов: ${productRows.size}")
 
-            println("SQL запрос выполнен. Получено строк: ${query.count()}")
-
-            query.map { row ->
-                println("row keys: ${row.fieldIndex.keys}") // Проверяем доступные ключи
-                println("Значение Products.name: ${row[Products.name] ?: "NULL"}")
-
+            productRows.map { row ->
                 val productId = row[Products.id]
 
                 val (unitName, unitAbbr) = getMeasurementUnitLocalized(
@@ -39,15 +35,14 @@ object ProductDao {
 
                 ProductResponse(
                     id = productId,
-                    name = row.getOrNull(Products.name) ?: "Без названия", // Добавляем проверку null
-                    description = row[Products.description] ?: "",
-                    price = row[Products.price] ?: BigDecimal.ZERO,
-                    hasSuppliers = row[Products.hasSuppliers] ?: false,
-                    supplierCount = row[Products.supplierCount] ?: 0,
-                    totalStockQuantity = row[Products.totalStockQuantity] ?: 0,
-                    minStockQuantity = row[Products.minStockQuantity] ?: 0,
-                    isDemanded = row[Products.isDemanded] ?: true,
-
+                    name = row[Products.name],
+                    description = row[Products.description],
+                    price = row[Products.price],
+                    hasSuppliers = row[Products.hasSuppliers],
+                    supplierCount = row[Products.supplierCount],
+                    totalStockQuantity = row[Products.totalStockQuantity],
+                    minStockQuantity = row[Products.minStockQuantity],
+                    isDemanded = row[Products.isDemanded],
                     measurementUnitId = row[Products.measurementUnitId],
                     measurementUnitList = getMeasurementUnit(row[Products.measurementUnitId], "ru"),
                     measurementUnit = unitName,
@@ -477,24 +472,24 @@ object ProductDao {
 
     // Получение категорий товара
     fun getProductCategories(productId: Long): List<CategoryResponse> = transaction {
+        // Все подкатегории, к которым привязаны товары
+        val subcategoriesWithProducts = ProductSubcategories
+            .selectAll()
+            .map { it[ProductSubcategories.subcategoryId] }
+            .toSet()
 
-        // Получаем ID подкатегорий, которые связаны с этим товаром
-        val selectedSubcategoryIds = getSubcategoryIds(productId).toSet()
-
-        // Выбираем все категории, к которым привязан продукт
+        // Категории, связанные с этим продуктом
         val categoryRows = ProductCategories
             .innerJoin(Categories)
             .leftJoin(CategoryTranslations)
             .selectAll()
             .where { ProductCategories.productId eq productId }
 
-        // Группируем по ID категории
         val groupedByCategory = categoryRows.groupBy { it[Categories.id] }
 
         return@transaction groupedByCategory.mapNotNull { (categoryId, rows) ->
             val firstRow = rows.firstOrNull() ?: return@mapNotNull null
 
-            // Переводы
             val translations = rows.mapNotNull { row ->
                 row.getOrNull(CategoryTranslations.id)?.let {
                     CategoryTranslationResponse(
@@ -509,15 +504,16 @@ object ProductDao {
             // Подкатегории этой категории
             val allSubcategories = getSubcategories(categoryId)
 
-            // Фильтруем только те, что реально выбраны у этого товара
-            val selectedSubcategories = allSubcategories.filter { it.id in selectedSubcategoryIds }
+            // ВАЖНО: Показываем только подкатегории, у которых есть хотя бы один продукт
+            // Если нужно чтобы в категориях отображались все подкатегории, в том числе без продуктов, Убрать фильтр.
+            val nonEmptySubcategories = allSubcategories.filter { it.id in subcategoriesWithProducts }
 
             // Собираем результат
             CategoryResponse(
                 id = categoryId,
                 name = firstRow[Categories.name],
                 translations = translations,
-                subcategories = selectedSubcategories,
+                subcategories = nonEmptySubcategories,
                 imageUrl = firstRow.getOrNull(Categories.imageUrl)
                     ?.let { "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(it) }
             )
