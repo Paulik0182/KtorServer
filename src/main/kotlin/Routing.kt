@@ -236,6 +236,11 @@ fun Application.configureRouting() {
 
             try {
                 val product = call.receive<ProductCreateRequest>()
+                println("=== INCOMING LINKS ===")
+                product.productLinks.forEach {
+                    println(it::class.qualifiedName + " -> " + it)
+                }
+
                 println("Обновление продукта: ID=$id, Name=${product.name}, Categories=${product.categories}")
 
                 ProductDao.update(id, product)

@@ -290,7 +290,7 @@ object ProductDao {
             // Вставляем связь product <-> url
             ProductLinks.insert {
                 it[ProductLinks.productId] = productId
-                it[ProductLinks.counterpartyId] = link.counterpartyId ?: 0L
+//                it[ProductLinks.counterpartyId] = link.counterpartyId ?: 0L
                 it[ProductLinks.urlId] = urlId
             }
         }
