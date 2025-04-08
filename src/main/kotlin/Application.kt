@@ -1,8 +1,11 @@
 package com.example
 
+import com.example.routing.categoryRoutes
+import com.example.routing.configureRouting
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 
 fun main(args: Array<String>) {
@@ -20,13 +23,6 @@ fun main(args: Array<String>) {
  * }
  */
 
-//fun Application.module() {
-//    install(ContentNegotiation) {
-//        json()
-//    }
-//    configureRouting()
-//}
-
 fun Application.module() {
     install(ContentNegotiation) {
         json(Json {
@@ -37,6 +33,10 @@ fun Application.module() {
     }
 
     DatabaseFactory.init() // Подключаем базу данных
+
+    routing {
+        categoryRoutes()
+    }
 
     configureRouting() // Настраиваем маршруты
 }

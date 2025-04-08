@@ -1,9 +1,7 @@
-package com.example
+package com.example.routing
 
 import com.example.data.*
-import com.example.data.dto.*
 import com.example.data.dto.counterparty.CounterpartyResponse
-import com.example.data.dto.order.OrderItemResponse
 import com.example.data.dto.order.OrderResponse
 import com.example.data.dto.product.*
 import io.ktor.http.*
@@ -13,9 +11,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.plugins.ContentTransformationException
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import java.util.Base64
 
 /**
  * Здесь объявляются маршруты (GET, POST, DELETE и др.) (endpoints) API, позволяя серверу принимать запросы и отвечать на них.
