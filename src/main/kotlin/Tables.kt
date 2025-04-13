@@ -42,6 +42,7 @@ object Products : Table("products") {
     val minStockQuantity = integer("min_stock_quantity").default(0)
     val isDemanded = bool("is_demanded").default(true)
     val measurementUnitId = long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
+    val currencyId = long("currency_id").references(Currencies.id).default(1)
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -238,5 +239,14 @@ object ProductSubcategories : Table("product_subcategories") {
     val subcategoryId = long("subcategory_id").references(Subcategories.id, onDelete = ReferenceOption.CASCADE)
 
     override val primaryKey = PrimaryKey(productId, subcategoryId)
+}
+
+object Currencies : Table("currencies") {
+    val id = long("id").autoIncrement()
+    val code = varchar("code", 10) // Например: "PLN", "USD"
+    val symbol = varchar("symbol", 5) // Например: "zł", "$", "€"
+    val name = varchar("name", 100) // Например: "Польский злотый"
+
+    override val primaryKey = PrimaryKey(id)
 }
 

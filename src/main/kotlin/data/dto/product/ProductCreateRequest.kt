@@ -23,7 +23,9 @@ data class ProductCreateRequest(
     val productCounterparties: List<ProductCounterpartyRequest> = emptyList(),
     val productSuppliers: List<ProductSupplierRequest> = emptyList(),
     val categories: List<Long> = emptyList(), // только ID категорий
-    val subcategories: List<Long> = emptyList()
+    val subcategories: List<Long> = emptyList(),
+
+    val currencyId: Long
 )
 
 @Serializable

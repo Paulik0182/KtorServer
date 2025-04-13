@@ -43,6 +43,10 @@ data class ProductResponse(
     val categories: List<CategoryResponse> = emptyList(), // Категории - многоязычность
     val subcategoryIds: List<Long>? = emptyList(), // список подкатегорий (для фильтра)
     val categoryIds: List<Long> = emptyList(),
-    val subcategories: List<SubcategoryResponse> = emptyList()
+    val subcategories: List<SubcategoryResponse> = emptyList(),
 
+    val currencyCode: String?,
+    val currencySymbol: String?,
+    val currencyName: String?,
+    val currencyId: Long?,
 )

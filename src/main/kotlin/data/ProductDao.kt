@@ -33,6 +33,13 @@ object ProductDao {
                     languageCode = "ru"
                 )
 
+                val currencyRow =
+                    Currencies.selectAll().where { Currencies.id eq row[Products.currencyId] }.firstOrNull()
+                val currencyCode = currencyRow?.get(Currencies.code)
+                val currencySymbol = currencyRow?.get(Currencies.symbol)
+                val currencyName = currencyRow?.get(Currencies.name)
+                val currencyId = currencyRow?.get(Currencies.id)
+
                 ProductResponse(
                     id = productId,
                     name = row[Products.name],
@@ -57,7 +64,11 @@ object ProductDao {
                     categories = getProductCategories(productId),
                     categoryIds = getCategoryIds(productId),
                     subcategoryIds = getSubcategoryIds(productId),
-                    subcategories = getProductSubcategories(productId)
+                    subcategories = getProductSubcategories(productId),
+                    currencyCode = currencyCode,
+                    currencySymbol = currencySymbol,
+                    currencyName = currencyName,
+                    currencyId = currencyId
                 )
             }
         } catch (e: Exception) {
@@ -81,33 +92,43 @@ object ProductDao {
                 languageCode = "ru"
             )
 
-                    ProductResponse(
-                        id = row[Products.id],
-                        name = row[Products.name] ?: "Без названия",
-                        description = row[Products.description] ?: "",
-                        price = row[Products.price] ?: BigDecimal.ZERO,
-                        hasSuppliers = row[Products.hasSuppliers] ?: false,
-                        supplierCount = row[Products.supplierCount] ?: 0,
-                        totalStockQuantity = row[Products.totalStockQuantity] ?: 0,
-                        minStockQuantity = row[Products.minStockQuantity] ?: 0,
-                        isDemanded = row[Products.isDemanded] ?: true,
+            val currencyRow = Currencies.selectAll().where { Currencies.id eq row[Products.currencyId] }.firstOrNull()
+            val currencyCode = currencyRow?.get(Currencies.code)
+            val currencySymbol = currencyRow?.get(Currencies.symbol)
+            val currencyName = currencyRow?.get(Currencies.name)
+            val currencyId = currencyRow?.get(Currencies.id)
 
-                        measurementUnitId = row[Products.measurementUnitId],
-                        measurementUnitList = getMeasurementUnit(row[Products.measurementUnitId], "ru"),
-                        measurementUnit = unitName,
-                        measurementUnitAbbreviation = unitAbbr,
+            ProductResponse(
+                id = row[Products.id],
+                name = row[Products.name] ?: "Без названия",
+                description = row[Products.description] ?: "",
+                price = row[Products.price] ?: BigDecimal.ZERO,
+                hasSuppliers = row[Products.hasSuppliers] ?: false,
+                supplierCount = row[Products.supplierCount] ?: 0,
+                totalStockQuantity = row[Products.totalStockQuantity] ?: 0,
+                minStockQuantity = row[Products.minStockQuantity] ?: 0,
+                isDemanded = row[Products.isDemanded] ?: true,
 
-                        productCodes = getProductCodes(productId),
-                        productLinks = getProductLinks(productId),
-                        productImages = getProductImages(productId),
-                        productCounterparties = getProductCounterparties(productId),
-                        productSuppliers = getProductSuppliers(productId),
-                        productOrderItem = getProductOrders(productId),
-                        categories = getProductCategories(productId),
-                        categoryIds = getCategoryIds(productId),
-                        subcategoryIds = getSubcategoryIds(productId),
-                        subcategories = getProductSubcategories(productId)
-                    )
+                measurementUnitId = row[Products.measurementUnitId],
+                measurementUnitList = getMeasurementUnit(row[Products.measurementUnitId], "ru"),
+                measurementUnit = unitName,
+                measurementUnitAbbreviation = unitAbbr,
+
+                productCodes = getProductCodes(productId),
+                productLinks = getProductLinks(productId),
+                productImages = getProductImages(productId),
+                productCounterparties = getProductCounterparties(productId),
+                productSuppliers = getProductSuppliers(productId),
+                productOrderItem = getProductOrders(productId),
+                categories = getProductCategories(productId),
+                categoryIds = getCategoryIds(productId),
+                subcategoryIds = getSubcategoryIds(productId),
+                subcategories = getProductSubcategories(productId),
+                currencyCode = currencyCode,
+                currencySymbol = currencySymbol,
+                currencyName = currencyName,
+                currencyId = currencyId
+            )
         } catch (e: Exception) {
             println("Ошибка в getById($id): ${e.localizedMessage}")
             throw e
@@ -140,6 +161,7 @@ object ProductDao {
             it[minStockQuantity] = product.minStockQuantity
             it[isDemanded] = product.isDemanded
             it[measurementUnitId] = product.measurementUnitId
+            it[currencyId] = product.currencyId
         }.single()[Products.id]
 
         insertProductDependencies(productId, product)
@@ -207,6 +229,7 @@ object ProductDao {
             it[minStockQuantity] = product.minStockQuantity
             it[isDemanded] = product.isDemanded
             it[measurementUnitId] = product.measurementUnitId
+            it[currencyId] = product.currencyId
         }
 
         if (updatedCount == 0) {
@@ -218,6 +241,17 @@ object ProductDao {
 
         deleteProductDependencies(productId)
         insertProductDependencies(productId, product)
+    }
+
+    fun getAllCurrencies(): List<CurrencyResponse> = transaction {
+        Currencies.selectAll().map {
+            CurrencyResponse(
+                id = it[Currencies.id],
+                code = it[Currencies.code],
+                symbol = it[Currencies.symbol],
+                name = it[Currencies.name]
+            )
+        }
     }
 
     /**
