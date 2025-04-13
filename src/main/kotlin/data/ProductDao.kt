@@ -8,6 +8,7 @@ import io.ktor.http.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.io.File
 import java.math.BigDecimal
 import java.util.*
 
@@ -266,7 +267,10 @@ object ProductDao {
 
     private fun insertProductDependencies(productId: Long, product: ProductCreateRequest) {
         insertProductCodes(productId, product.productCodes)
-        insertProductImages(productId, product.productImages)
+        product.productImages.forEach { image ->
+            insertProductImagePath(productId, image.fileName)
+        }
+
         insertProductLinks(productId, product.productLinks)
         insertProductCounterparties(productId, product.productCounterparties)
         insertProductSuppliers(productId, product.productSuppliers)
@@ -296,17 +300,28 @@ object ProductDao {
         }
     }
 
-    fun insertProductImages(productId: Long, images: List<ProductImageRequest>) = transaction {
-        ProductImages.batchInsert(images.filter { it.imageBase64.isNotBlank() }) { image ->
-            try {
-                val decoded = Base64.getDecoder().decode(image.imageBase64)
-                this[ProductImages.productId] = productId
-                this[ProductImages.imageBase64] = decoded
-            } catch (e: IllegalArgumentException) {
-                error("Ошибка декодирования base64: ${image.imageBase64}")
-            }
-        }
+    //TODO Временно. Потом удалить!
+//    fun insertProductImages(productId: Long, images: List<ProductImageRequest>) = transaction {
+//        ProductImages.batchInsert(images.filter { it.fileName.isNotBlank() }) { image ->
+//            try {
+//                val decoded = Base64.getDecoder().decode(image.fileName)
+//                this[ProductImages.productId] = productId
+//                this[ProductImages.imagePath] = images
+//            } catch (e: IllegalArgumentException) {
+//                error("Ошибка декодирования base64: ${image.fileName}")
+//            }
+//        }
+//    }
+
+    fun insertProductImagePath(productId: Long, imagePath: String): Long = transaction {
+        ProductImages.insert {
+            it[ProductImages.productId] = productId
+            it[ProductImages.imagePath] = imagePath
+        } // можно добавить `returning`, если нужен ID
+        return@transaction 1L // или null, если не нужен ID
     }
+
+
 
     private fun insertProductLinks(productId: Long, links: List<ProductLinkRequest>) = transaction {
         links.forEach { link ->
@@ -636,15 +651,15 @@ object ProductDao {
         }
     }
 
-    // Получение изображений товара
     fun getProductImages(productId: Long): List<ProductImageResponse> = transaction {
         ProductImages.selectAll().where { ProductImages.productId eq productId }
             .map {
                 ProductImageResponse(
                     id = it[ProductImages.id],
                     productId = it[ProductImages.productId],
-                    imageBase64 = Base64.getEncoder()
-                        .encodeToString(it[ProductImages.imageBase64]) // Преобразуем бинарные данные в Base64
+                    imageUrl = it[ProductImages.imagePath]?.let { path ->
+                        "/uploads/images/${File(path).name}"
+                    } ?: "/uploads/images/placeholder.png"
                 )
             }
     }

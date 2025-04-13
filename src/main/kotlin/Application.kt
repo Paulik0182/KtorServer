@@ -2,8 +2,10 @@ package com.example
 
 import com.example.routing.categoryRoutes
 import com.example.routing.configureRouting
+import com.example.routing.imageRoutes
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import io.ktor.server.http.content.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
@@ -36,6 +38,12 @@ fun Application.module() {
 
     routing {
         categoryRoutes()
+        imageRoutes()
+
+        static("/uploads") {
+            files("uploads")
+        }
+
     }
 
     configureRouting() // Настраиваем маршруты
