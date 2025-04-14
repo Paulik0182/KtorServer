@@ -1,6 +1,8 @@
 package com.example.data
 
 import com.example.*
+import com.example.data.ProductImageDao.getProductImages
+import com.example.data.ProductImageDao.insertProductImagePath
 import com.example.data.dto.dictionaries.*
 import com.example.data.dto.order.OrderItemResponse
 import com.example.data.dto.product.*
@@ -8,7 +10,6 @@ import io.ktor.http.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.io.File
 import java.math.BigDecimal
 import java.util.*
 
@@ -299,29 +300,6 @@ object ProductDao {
             }
         }
     }
-
-    //TODO Временно. Потом удалить!
-//    fun insertProductImages(productId: Long, images: List<ProductImageRequest>) = transaction {
-//        ProductImages.batchInsert(images.filter { it.fileName.isNotBlank() }) { image ->
-//            try {
-//                val decoded = Base64.getDecoder().decode(image.fileName)
-//                this[ProductImages.productId] = productId
-//                this[ProductImages.imagePath] = images
-//            } catch (e: IllegalArgumentException) {
-//                error("Ошибка декодирования base64: ${image.fileName}")
-//            }
-//        }
-//    }
-
-    fun insertProductImagePath(productId: Long, imagePath: String): Long = transaction {
-        ProductImages.insert {
-            it[ProductImages.productId] = productId
-            it[ProductImages.imagePath] = imagePath
-        } // можно добавить `returning`, если нужен ID
-        return@transaction 1L // или null, если не нужен ID
-    }
-
-
 
     private fun insertProductLinks(productId: Long, links: List<ProductLinkRequest>) = transaction {
         links.forEach { link ->
@@ -649,19 +627,6 @@ object ProductDao {
                 url = listOf(UrlsResponse(id = urlId, url = urlText))
             )
         }
-    }
-
-    fun getProductImages(productId: Long): List<ProductImageResponse> = transaction {
-        ProductImages.selectAll().where { ProductImages.productId eq productId }
-            .map {
-                ProductImageResponse(
-                    id = it[ProductImages.id],
-                    productId = it[ProductImages.productId],
-                    imageUrl = it[ProductImages.imagePath]?.let { path ->
-                        "/uploads/images/${File(path).name}"
-                    } ?: "/uploads/images/placeholder.png"
-                )
-            }
     }
 
     fun getCategoryIds(productId: Long): List<Long> = transaction {

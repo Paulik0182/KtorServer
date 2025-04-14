@@ -80,8 +80,8 @@ object ProductSuppliers : Table("product_suppliers") {
 object ProductImages : Table("product_images") {
     val id = long("id").autoIncrement()
     val productId = long("product_id").references(Products.id, onDelete = ReferenceOption.CASCADE)
-//    val imageBase64 = binary("image")
     val imagePath = varchar("image_path", 255)
+    val position = integer("position").default(0)
 
     override val primaryKey = PrimaryKey(id)
 }

@@ -36,8 +36,8 @@ data class ProductLinkRequest(val url: String)
 
 @Serializable
 data class ProductImageRequest(
-//    val imageBase64: String,
-    val fileName: String
+    val fileName: String,
+    val position: Int? = null
 )
 
 @Serializable

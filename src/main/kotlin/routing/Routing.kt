@@ -122,52 +122,6 @@ fun Application.configureRouting() {
         }
         // Тестовый запрос: http://127.0.0.1:8080/products/5/codes
 
-//                val images = transaction {
-//                    ProductImages.selectAll().where { ProductImages.productId eq productId }
-//                        .map {
-//                            ProductImageResponse(
-//                                id = it[ProductImages.id],
-//                                productId = it[ProductImages.productId],
-//                                imageBase64 = Base64.getEncoder().encodeToString(it[ProductImages.imageBase64])
-//                            )
-//                        }
-
-        // 🔹 Получение изображений товара
-        get("/products/{id}/images") {
-            val productId = call.parameters["id"]?.toLongOrNull()
-                ?: return@get call.respond(HttpStatusCode.BadRequest, "Некорректный ID продукта")
-
-            try {
-                val images = ProductDao.getProductImages(productId)
-                call.respond(images)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
-            }
-        }
-        // Тестовый запрос: http://127.0.0.1:8080/products/5/images
-
-        // 🔹 Добавление изображения
-        post("/products/{id}/images") {
-//            val productId = call.parameters["id"]?.toLongOrNull()
-//                ?: return@post call.respond(HttpStatusCode.BadRequest, "Некорректный ID товара")
-//
-//            try {
-//                val params = call.receive<Map<String, String>>()
-//                val imageBase64 = params["image"]
-//                    ?: return@post call.respond(HttpStatusCode.BadRequest, "Отсутствует изображение")
-//
-//                val imageBytes = Base64.getDecoder().decode(imageBase64)
-//                val id = ProductDao.insertProductImages(productId, listOf(ProductImageResponse(null, productId, imageBase64)))
-////                val id = ProductImageDao.insert(productId, imageBytes)
-//                call.respond(HttpStatusCode.Created, "Изображение добавлено с ID = $id")
-//            } catch (e: Exception) {
-//                call.respond(HttpStatusCode.InternalServerError, "Ошибка: ${e.localizedMessage}")
-//            }
-        }
-        // Тестовый запрос (cURL):
-        // curl -X POST http://127.0.0.1:8080/products/5/images -H "Content-Type: application/json" -d '{"image": "..." }'
-
 //        get("/products/{id}/links") {
 //            val productId = call.parameters["id"]?.toIntOrNull() ?: return@get call.respond(
 //                HttpStatusCode.BadRequest, "Неверный ID продукта"
