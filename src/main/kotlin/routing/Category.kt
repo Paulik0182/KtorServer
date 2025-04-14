@@ -1,11 +1,15 @@
 package com.example.routing
 
+import com.example.Categories
+import com.example.LocalImageStorageService
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.http.*
 import com.example.data.CategoryDao
 import com.example.data.dto.category.CategoryRequest
+import io.ktor.http.content.*
 import io.ktor.server.request.*
+import org.jetbrains.exposed.sql.update
 
 /**
  * GET /categories/all
@@ -105,4 +109,28 @@ fun Route.categoryRoutes() {
             call.respond(result)
         }
     }
+
+    post("/{id}/image") {
+        val categoryId = call.parameters["id"]?.toLongOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest)
+        val multipart = call.receiveMultipart()
+        var savedPath: String? = null
+        val imageStorage = LocalImageStorageService()
+        val prefix = "categories"
+        multipart.forEachPart { part ->
+            if (part is PartData.FileItem && part.name == "image") {
+                savedPath = imageStorage.saveImage(prefix, categoryId, part)
+                part.dispose()
+            }
+        }
+
+        if (savedPath != null) {
+            Categories.update({ Categories.id eq categoryId }) {
+                it[imagePath] = savedPath!!
+            }
+            call.respond(HttpStatusCode.OK, mapOf("imagePath" to savedPath))
+        } else {
+            call.respond(HttpStatusCode.BadRequest, "Файл не передан")
+        }
+    }
+
 }

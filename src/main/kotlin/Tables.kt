@@ -105,7 +105,7 @@ object ProductCodes : Table("product_codes") {
 object Categories : Table("categories") {
     val id = long("id").autoIncrement()
     val name = varchar("name", 100)
-    val imageUrl = binary("image").nullable()
+    val imagePath = varchar("image_path", 255)
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -158,7 +158,7 @@ object Subcategories : Table("subcategories") {
     val id = long("id").autoIncrement()
     val categoryId = long("category_id").references(Categories.id, onDelete = ReferenceOption.CASCADE)
     val name = varchar("name", 100)
-    val imageUrl = binary("image").nullable()
+    val imagePath = varchar("image_path", 255)
 
     override val primaryKey = PrimaryKey(id)
 }

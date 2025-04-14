@@ -12,6 +12,17 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
 
+/**
+ * GET /products/{id}/images – получить список изображений продукта.
+ *
+ * GET /products/{id}/images/{imageId} – получить конкретное изображение.
+ *
+ * POST /products/{id}/images – загрузка изображений с ограничением до 10 штук.
+ *
+ * POST /products/{id}/images/reorder или PATCH – изменение порядка изображений.
+ *
+ * DELETE /products/{id}/images/{imageId} – удаление изображения.
+ */
 fun Route.imageRoutes() {
 
     route("/products/{id}/images") {
@@ -103,10 +114,11 @@ fun Route.imageRoutes() {
             var savedPath: String? = null
             var hasError = false
             var errorMessage: String? = null
+            val prefix = "product"
 
             parts.forEach { part ->
                 try {
-                    val path = imageStorage.saveImage(productId, part)
+                    val path = imageStorage.saveImage(prefix, productId, part)
                     ProductImageDao.insertProductImagePath(productId, path)
                     savedPath = path
                 } catch (e: Exception) {

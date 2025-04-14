@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CategoryRequest(
     val name: String,
-    val imageBase64: String? = null,
+    val imagePath: String,
     val translations: List<CategoryTranslationRequest> = emptyList(),
     val subcategories: List<SubcategoryRequest> = emptyList()
 )
@@ -20,7 +20,7 @@ data class CategoryTranslationRequest(
 data class SubcategoryRequest(
     val id: Long? = null, // для PUT
     val name: String,
-    val imageBase64: String? = null,
+    val imagePath: String,
     val translations: List<SubcategoryTranslationRequest> = emptyList()
 )
 

@@ -1,6 +1,11 @@
 package com.example.data
 
 import com.example.*
+import com.example.data.CategoryDao.getCategoryIds
+import com.example.data.CategoryDao.getProductCategories
+import com.example.data.CategoryDao.getProductSubcategories
+import com.example.data.CategoryDao.getSubcategoryIds
+import com.example.data.CategoryDao.insertProductSubcategories
 import com.example.data.ProductImageDao.getProductImages
 import com.example.data.ProductImageDao.insertProductImagePath
 import com.example.data.dto.dictionaries.*
@@ -11,7 +16,6 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.math.BigDecimal
-import java.util.*
 
 /**
  * Этот объект управляет товарами (products) в базе данных.
@@ -497,102 +501,6 @@ object ProductDao {
             .singleOrNull() ?: "Нет названия фирмы"
     }
 
-    // Получение категорий товара
-    fun getProductCategories(productId: Long): List<CategoryResponse> = transaction {
-        // Все подкатегории, к которым привязаны товары
-        val subcategoriesWithProducts = ProductSubcategories
-            .selectAll()
-            .map { it[ProductSubcategories.subcategoryId] }
-            .toSet()
-
-        // Категории, связанные с этим продуктом
-        val categoryRows = ProductCategories
-            .innerJoin(Categories)
-            .leftJoin(CategoryTranslations)
-            .selectAll()
-            .where { ProductCategories.productId eq productId }
-
-        val groupedByCategory = categoryRows.groupBy { it[Categories.id] }
-
-        return@transaction groupedByCategory.mapNotNull { (categoryId, rows) ->
-            val firstRow = rows.firstOrNull() ?: return@mapNotNull null
-
-            val translations = rows.mapNotNull { row ->
-                row.getOrNull(CategoryTranslations.id)?.let {
-                    CategoryTranslationResponse(
-                        id = it,
-                        categoryId = categoryId,
-                        languageCode = row[CategoryTranslations.languageCode],
-                        name = row[CategoryTranslations.name]
-                    )
-                }
-            }
-
-            // Подкатегории этой категории
-            val allSubcategories = getSubcategories(categoryId)
-
-            // ВАЖНО: Показываем только подкатегории, у которых есть хотя бы один продукт
-            // Если нужно чтобы в категориях отображались все подкатегории, в том числе без продуктов, Убрать фильтр.
-            val nonEmptySubcategories = allSubcategories.filter { it.id in subcategoriesWithProducts }
-
-            // Собираем результат
-            CategoryResponse(
-                id = categoryId,
-                name = firstRow[Categories.name],
-                translations = translations,
-                subcategories = nonEmptySubcategories,
-                imageUrl = firstRow.getOrNull(Categories.imageUrl)
-                    ?.let { "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(it) }
-            )
-        }
-    }
-
-    fun getSubcategories(categoryId: Long): List<SubcategoryResponse> = transaction {
-        val subcategories = Subcategories
-            .leftJoin(SubcategoryTranslations)
-            .select(
-                Subcategories.id,
-                Subcategories.name,
-                Subcategories.categoryId,
-                Subcategories.imageUrl,
-                SubcategoryTranslations.id,
-                SubcategoryTranslations.languageCode,
-                SubcategoryTranslations.name
-            )
-            .where { Subcategories.categoryId eq categoryId }
-            .groupBy { it[Subcategories.id] }
-            .mapNotNull { (subcategoryId, rows) ->
-                val firstRow = rows.firstOrNull() ?: return@mapNotNull null
-
-                val fallbackName = firstRow[Subcategories.name]
-                val fallbackCategoryId = firstRow[Subcategories.categoryId]
-                val fallbackImage = firstRow.getOrNull(Subcategories.imageUrl)
-
-                val translations = rows.mapNotNull { row ->
-                    row.getOrNull(SubcategoryTranslations.id)?.let {
-                        SubcategoryTranslationResponse(
-                            id = it,
-                            subcategoryId = subcategoryId,
-                            languageCode = row[SubcategoryTranslations.languageCode],
-                            name = row[SubcategoryTranslations.name]
-                        )
-                    }
-                }
-
-                SubcategoryResponse(
-                    id = subcategoryId,
-                    name = fallbackName,
-                    categoryId = fallbackCategoryId,
-                    translations = translations,
-                    imageUrl = fallbackImage?.let {
-                        "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(it)
-                    }
-                )
-            }
-
-        return@transaction subcategories
-    }
-
     // Получение кодов товара
     fun getProductCodes(productId: Long): List<ProductCodeResponse> = transaction {
         (ProductCodes innerJoin Codes).selectAll().where {
@@ -627,85 +535,5 @@ object ProductDao {
                 url = listOf(UrlsResponse(id = urlId, url = urlText))
             )
         }
-    }
-
-    fun getCategoryIds(productId: Long): List<Long> = transaction {
-        ProductCategories
-            .selectAll().where { ProductCategories.productId eq productId }
-            .map { it[ProductCategories.categoryId] }
-    }
-
-    fun getSubcategoryIds(productId: Long): List<Long> = transaction {
-        ProductSubcategories
-            .selectAll().where { ProductSubcategories.productId eq productId }
-            .map { it[ProductSubcategories.subcategoryId] }
-    }
-
-    fun insertProductSubcategories(productId: Long, subcategoryIds: List<Long>) = transaction {
-        // Получаем список ID категорий, к которым привязан продукт
-        val allowedCategoryIds = ProductCategories
-            .selectAll().where { ProductCategories.productId eq productId }
-            .map { it[ProductCategories.categoryId] }
-
-        // Получаем подкатегории, проверяем что они принадлежат разрешённым категориям
-        val subcategories = Subcategories
-            .selectAll().where { Subcategories.id inList subcategoryIds }
-            .associateBy { it[Subcategories.id] }
-
-        // 3. Фильтруем только те, которые принадлежат разрешённым категориям
-        val filteredSubcategories = subcategories.filter { (_, row) ->
-            row[Subcategories.categoryId] in allowedCategoryIds
-        }
-
-        // 4. Проверяем, все ли подкатегории валидны
-        if (filteredSubcategories.size != subcategoryIds.size) {
-            val invalidIds = subcategoryIds.toSet() - filteredSubcategories.keys
-            error(
-                HttpStatusCode.BadRequest,
-                mapOf("error" to "invalid_subcategories", "message" to "Некорректные подкатегории: $invalidIds")
-            )
-        }
-
-        // Вставляем допустимые подкатегории
-        ProductSubcategories.batchInsert(filteredSubcategories.keys.toList()) { subcategoryId ->
-            this[ProductSubcategories.productId] = productId
-            this[ProductSubcategories.subcategoryId] = subcategoryId
-        }
-    }
-
-    fun getProductSubcategories(productId: Long): List<SubcategoryResponse> = transaction {
-        (ProductSubcategories innerJoin Subcategories)
-            .leftJoin(SubcategoryTranslations)
-            .selectAll()
-            .where { ProductSubcategories.productId eq productId }
-            .groupBy { it[Subcategories.id] }
-            .mapNotNull { (subcategoryId, rows) ->
-                val firstRow = rows.firstOrNull() ?: return@mapNotNull null
-
-                val fallbackName = firstRow[Subcategories.name]
-                val fallbackCategoryId = firstRow[Subcategories.categoryId]
-                val fallbackImage = firstRow.getOrNull(Subcategories.imageUrl)
-
-                val translations = rows.mapNotNull { row ->
-                    row.getOrNull(SubcategoryTranslations.id)?.let {
-                        SubcategoryTranslationResponse(
-                            id = it,
-                            subcategoryId = subcategoryId,
-                            languageCode = row[SubcategoryTranslations.languageCode],
-                            name = row[SubcategoryTranslations.name]
-                        )
-                    }
-                }
-
-                SubcategoryResponse(
-                    id = subcategoryId,
-                    name = fallbackName,
-                    categoryId = fallbackCategoryId,
-                    translations = translations,
-                    imageUrl = fallbackImage?.let {
-                        "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(it)
-                    }
-                )
-            }
     }
 }
