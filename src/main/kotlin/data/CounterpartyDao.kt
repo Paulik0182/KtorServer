@@ -44,7 +44,7 @@ object CounterpartyDao {
      * Добавление нового контрагента
      *
      * Counterparties.insert {} — вставка новой строки (INSERT INTO counterparties (name, type) VALUES (?, ?);).
-     * it[Counterparties.name] = name — записываем имя.
+     * it[Counterparties.companyName] = name — записываем имя.
      * it[Counterparties.type] = type — записываем тип (например, "поставщик" или "клиент").
      * .get(Counterparties.id) — получаем ID вновь созданного контрагента.
      */

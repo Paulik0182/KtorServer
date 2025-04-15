@@ -497,7 +497,7 @@ object ProductDao {
 
     fun getCounterpartyName(id: Long): String = transaction {
         Counterparties.selectAll().where { Counterparties.id eq id }
-            .map { it[Counterparties.name] }
+            .map { it[Counterparties.companyName] }
             .singleOrNull() ?: "Нет названия фирмы"
     }
 

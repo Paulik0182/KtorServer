@@ -8,5 +8,7 @@ data class CountryResponse(
     val name: String,
     val phoneCode: String,
     val isoCode: String,
-    val translations: List<CountryTranslationResponse> = emptyList()
+    val translations: List<CountryTranslationResponse> = emptyList(),
+    val city: List<CityResponse>? = emptyList(),
+    val cityIds: List<Long>? = emptyList(),
 )

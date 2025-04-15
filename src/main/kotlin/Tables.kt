@@ -1,6 +1,13 @@
 package com.example
 
 import com.example.Categories.nullable
+import com.example.CounterpartyAddresses.nullable
+import com.example.CounterpartyBankAccounts.autoIncrement
+import com.example.CounterpartyBankAccounts.references
+import com.example.CounterpartyRepresentatives.nullable
+import com.example.Currencies.autoIncrement
+import com.example.Orders.default
+import com.example.Orders.nullable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.CurrentTimestamp
@@ -8,13 +15,20 @@ import org.jetbrains.exposed.sql.javatime.timestamp
 
 object Counterparties : Table("counterparties") {
     val id = long("id").autoIncrement()
-    val name = varchar("name", 100)
+    val companyName = varchar("company_name", 100).nullable()
     val type = varchar("type", 50)
     val isSupplierOld = bool("is_supplier_old").default(false)
     val productCountOld = integer("product_count_old").default(0)
     val isSupplier = bool("is_supplier_type").default(false)
     val isWarehouse = bool("is_warehouse_type").default(false)
     val isCustomer = bool("is_customer_type").default(false)
+    val isLegalEntity = bool("is_legal_entity").default(false) // Юридическое лицо (true) или физическое (false)
+    val shortName = varchar("short_name", 100) // Краткое название или псевдоним
+    val imagePath = varchar("image_path", 255).nullable() // Путь к логотипу/аватарке
+    val nip = varchar("nip", 20).nullable() // NIP (для физ/юр. лиц)
+    val krs = varchar("krs", 30).nullable() // Только для юр. лиц (можно оставить nullable)
+    val firstName = varchar("first_name", 100).nullable() // Только для физ. лиц
+    val lastName = varchar("last_name", 100).nullable() // Только для физ. лиц
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -26,7 +40,8 @@ object ProductCounterparties : Table("product_counterparties") {
     val role = varchar("role", 50)
     val minStockQuantity = integer("min_stock_quantity").default(0)
     val warehouseLocationCodes = stringListJsonb("warehouse_location_codes").nullable()
-    val measurementUnitId = long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
+    val measurementUnitId =
+        long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
 
     override val primaryKey = PrimaryKey(productId, counterpartyId)
 }
@@ -41,7 +56,8 @@ object Products : Table("products") {
     val totalStockQuantity = integer("total_stock_quantity").default(0)
     val minStockQuantity = integer("min_stock_quantity").default(0)
     val isDemanded = bool("is_demanded").default(true)
-    val measurementUnitId = long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
+    val measurementUnitId =
+        long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
     val currencyId = long("currency_id").references(Currencies.id).default(1)
 
     override val primaryKey = PrimaryKey(id)
@@ -63,7 +79,8 @@ object OrderItems : Table("order_items") {
     val id = long("id").autoIncrement()
     val orderId = long("order_id").references(Orders.id, onDelete = ReferenceOption.CASCADE)
     val productId = long("product_id").references(Products.id, onDelete = ReferenceOption.CASCADE)
-    val measurementUnitId = long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
+    val measurementUnitId =
+        long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
     val quantity = integer("quantity").default(1)
 
     override val primaryKey = PrimaryKey(id)
@@ -189,7 +206,8 @@ object MeasurementUnits : Table("measurement_units") {
 
 object MeasurementUnitTranslations : Table("measurement_units_translations") {
     val id = long("id").autoIncrement()
-    val measurementUnitId = long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
+    val measurementUnitId =
+        long("measurement_unit_id").references(MeasurementUnits.id, onDelete = ReferenceOption.CASCADE)
     val languageCode = varchar("language_code", 5)
     val name = varchar("name", 100)
     val abbreviation = varchar("abbreviation", 10).nullable()
@@ -201,12 +219,17 @@ object CounterpartyAddresses : Table("counterparty_addresses") {
     val id = long("id").autoIncrement()
     val counterpartyId = long("counterparty_id").references(Counterparties.id, onDelete = ReferenceOption.CASCADE)
     val countryId = long("country_id").references(Countries.id, onDelete = ReferenceOption.CASCADE)
+    val counterpartyContactId =
+        long("contact_id").references(CounterpartyContacts.id, onDelete = ReferenceOption.CASCADE)
     val postalCode = varchar("postal_code", 20).nullable()
-    val streetName = varchar("street_name", 255).nullable()
-    val houseNumber = varchar("house_number", 50).nullable()
+    val streetName = varchar("street_name", 255)
+    val houseNumber = varchar("house_number", 50)
     val locationNumber = varchar("location_number", 50).nullable()
     val latitude = decimal("latitude", 10, 6).nullable()
     val longitude = decimal("longitude", 10, 6).nullable()
+    val entranceNumber = varchar("entrance_number", 5).nullable()
+    val floor = varchar("floor", 2).nullable()
+    val numberIntercom = varchar("number_intercom", 10).nullable()
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -217,6 +240,8 @@ object CounterpartyContacts : Table("counterparty_contacts") {
     val contactType = varchar("contact_type", 50)
     val contactValue = varchar("contact_value", 100)
     val countryCodeId = long("country_code_id").references(Countries.id, onDelete = ReferenceOption.CASCADE)
+    val representativeId =
+        long("representative_id").references(CounterpartyRepresentatives.id, onDelete = ReferenceOption.CASCADE)
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -251,3 +276,22 @@ object Currencies : Table("currencies") {
     override val primaryKey = PrimaryKey(id)
 }
 
+object CounterpartyBankAccounts : Table("counterparty_bank_accounts") {
+    val id = long("id").autoIncrement()
+    val counterpartyId = long("counterparty_id").references(Counterparties.id, onDelete = ReferenceOption.CASCADE)
+    val accountNumber = varchar("account_number", 50).nullable() //Номер счета
+    val bankName = varchar("bank_name", 100)
+    val currencyId = long("currency_id").references(Currencies.id, onDelete = ReferenceOption.CASCADE)
+    val swiftCode = varchar("swift_code", 20).nullable()
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+object CounterpartyRepresentatives : Table("counterparty_representatives") {
+    val id = long("id").autoIncrement()
+    val counterpartyId = long("counterparty_id").references(Counterparties.id, onDelete = ReferenceOption.CASCADE)
+    val fullName = varchar("full_name", 100)
+    val position = integer("position").default(0)
+
+    override val primaryKey = PrimaryKey(id)
+}
