@@ -61,21 +61,20 @@ object CounterpartyDao {
                     counterpartyContacts = contacts,
 
                     contactIds = contacts.mapNotNull { it.id },
-                    counterpartyContact = listOf(
-                        contacts.joinToString(separator = ", ") { formatContactString(it) }
-                    ),
+                    // это если мы захотим получить информацию одной строкой
+//                    counterpartyContact = listOf(
+//                        contacts.joinToString(separator = ", ") { formatContactString(it) }
+//                    ),
+                    counterpartyContact = contacts.map { formatContactString(it) },
+
 
                     counterpartyBankAccounts = bankAccounts,
                     bankAccountIds = bankAccounts.mapNotNull { it.id },
-                    bankAccountInformation = listOf(
-                        bankAccounts.joinToString(separator = ",") { formatBankString(it) }
-                    ),
+                    bankAccountInformation = bankAccounts.map { formatBankString(it) },
 
                     counterpartyAddresses = addresses,
                     addressesIds = addresses.mapNotNull { it.id },
-                    addressesInformation = listOf(
-                        addresses.joinToString(separator = ",") { formatAddressString(it) }
-                    ),
+                    addressesInformation = addresses.map { formatAddressString(it) },
 
                     orders = orders,
                     orderIds = orders.mapNotNull { it.id },
@@ -95,10 +94,6 @@ object CounterpartyDao {
 
     fun getById(counterpartyId: Long, languageCode: String = "ru"): CounterpartyResponse? = transaction {
         try {
-
-//            Counterparties.selectAll().where { Counterparties.id eq counterpartyId }.firstOrNull()?.let { row ->
-//            getAll(languageCode).firstOrNull { it.id == counterpartyId }
-            // Какой лучше вариант и в чем разница в этих записях?
             val row = Counterparties
                 .selectAll()
                 .where { Counterparties.id eq counterpartyId }
@@ -139,21 +134,19 @@ object CounterpartyDao {
 
                 counterpartyContacts = contacts,
                 contactIds = contacts.mapNotNull { it.id },
-                counterpartyContact = listOf(
-                    contacts.joinToString(separator = ", ") { formatContactString(it) }
-                ),
+                // это если мы захотим получить информацию одной строкой
+//                    counterpartyContact = listOf(
+//                        contacts.joinToString(separator = ", ") { formatContactString(it) }
+//                    ),
+                counterpartyContact = contacts.map { formatContactString(it) },
 
                 counterpartyBankAccounts = bankAccounts,
                 bankAccountIds = bankAccounts.mapNotNull { it.id },
-                bankAccountInformation = listOf(
-                    bankAccounts.joinToString(separator = ",") { formatBankString(it) }
-                ),
+                bankAccountInformation = bankAccounts.map { formatBankString(it) },
 
                 counterpartyAddresses = addresses,
                 addressesIds = addresses.mapNotNull { it.id },
-                addressesInformation = listOf(
-                    addresses.joinToString(separator = ",") { formatAddressString(it) }
-                ),
+                addressesInformation = addresses.map { formatAddressString(it) },
 
                 orders = orders,
                 orderIds = orders.mapNotNull { it.id },
@@ -350,7 +343,8 @@ object CounterpartyDao {
 
     private fun formatContactString(it: CounterpartyContactResponse): String {
         return when (it.contactType) {
-            "phone" -> "Тел. +${it.countryName} ${it.contactValue}"
+            "phone" -> "Тел. ${it.countryPhoneCode} ${it.contactValue}"
+            "fax" -> "Fax: ${it.countryPhoneCode} ${it.contactValue}"
             "email" -> "Email: ${it.contactValue}"
             else -> "${it.contactType}: ${it.contactValue}"
         }
@@ -388,15 +382,18 @@ object CounterpartyDao {
             .selectAll()
             .where { CounterpartyContacts.representativeId eq repId }
             .map {
+                val countryId = it[CounterpartyContacts.countryCodeId]
                 CounterpartyContactResponse(
                     id = it[CounterpartyContacts.id],
                     counterpartyId = it[CounterpartyContacts.counterpartyId],
                     counterpartyName = it[CounterpartyContacts.counterpartyId]?.let { getCounterpartyName(repId) },
                     contactType = it[CounterpartyContacts.contactType] ?: "",
                     contactValue = it[CounterpartyContacts.contactValue] ?: "",
-                    countryCodeId = it[CounterpartyContacts.countryCodeId],
+                    countryCodeId = countryId,
                     representativeId = it[CounterpartyContacts.representativeId],
-                    countryName = it[CounterpartyContacts.countryCodeId]?.let { getCountryName(it) },
+                    countryPhoneCode = countryId?.let { getCountryPhoneCode(it) },
+                    countryIsoCode = countryId?.let { getCountryIsoCode(it) },
+                    countryName = countryId?.let { getCountryName(it) },
                     representativeName = it[CounterpartyContacts.representativeId]?.let { getRepresentativeName(it) },
 
                     )
@@ -409,14 +406,18 @@ object CounterpartyDao {
             .where { CounterpartyContacts.counterpartyId eq counterpartyId }
             .map {
                 val repId = it[CounterpartyContacts.representativeId]
+                val countryId = it[CounterpartyContacts.countryCodeId]
+
                 CounterpartyContactResponse(
                     id = it[CounterpartyContacts.id],
                     counterpartyId = counterpartyId,
                     counterpartyName = it[CounterpartyContacts.counterpartyId]?.let { getCounterpartyName(counterpartyId) },
                     contactType = it[CounterpartyContacts.contactType] ?: "",
                     contactValue = it[CounterpartyContacts.contactValue] ?: "",
-                    countryCodeId = it[CounterpartyContacts.countryCodeId],
-                    countryName = it[CounterpartyContacts.countryCodeId]?.let { getCountryName(it) },
+                    countryCodeId = countryId,
+                    countryPhoneCode = countryId?.let { getCountryPhoneCode(it) },
+                    countryIsoCode = countryId?.let { getCountryIsoCode(it) },
+                    countryName = countryId?.let { getCountryName(it) },
                     representativeId = repId,
                     representativeName = repId?.let { getRepresentativeName(it) }
                 )
@@ -452,6 +453,8 @@ object CounterpartyDao {
                 .innerJoin(Countries)
                 .selectAll().where { CounterpartyAddresses.counterpartyId eq counterpartyId }
                 .map {
+                    println("🧪 Строка: ${it[CounterpartyAddresses.id]}, contact_id: ${it[CounterpartyAddresses.counterpartyContactId]}")
+
                     val countryId = it[Countries.id]
                     CounterpartyAddressResponse(
                         id = it[CounterpartyAddresses.id],
@@ -539,12 +542,28 @@ object CounterpartyDao {
             }
     }
 
-    fun getCountryName(id: Long): String = transaction {
+    fun getCountryPhoneCode(id: Long): String? = transaction {
+        Countries
+            .selectAll()
+            .where { Countries.id eq id }
+            .map { it[Countries.phoneCode] }
+            .firstOrNull()
+    }
+
+    fun getCountryIsoCode(id: Long): String? = transaction {
+        Countries
+            .selectAll()
+            .where { Countries.id eq id }
+            .map { it[Countries.isoCode] }
+            .firstOrNull()
+    }
+
+    fun getCountryName(id: Long): String? = transaction {
         Countries
             .selectAll()
             .where { Countries.id eq id }
             .map { it[Countries.name] }
-            .firstOrNull() ?: "Неизвестная страна"
+            .firstOrNull()
     }
 
     fun getRepresentativeName(id: Long): String = transaction {

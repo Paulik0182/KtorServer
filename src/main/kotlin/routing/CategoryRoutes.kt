@@ -132,5 +132,4 @@ fun Route.categoryRoutes() {
             call.respond(HttpStatusCode.BadRequest, "Файл не передан")
         }
     }
-
 }

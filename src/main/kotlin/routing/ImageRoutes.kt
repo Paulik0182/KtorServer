@@ -7,10 +7,6 @@ import io.ktor.server.response.*
 import io.ktor.http.*
 import io.ktor.server.routing.*
 import io.ktor.http.content.*
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import java.io.File
 
 /**
  * GET /products/{id}/images – получить список изображений продукта.

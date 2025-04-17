@@ -14,7 +14,7 @@ data class CounterpartyAddressResponse(
     val country: CountryResponse? = null,
     val countryName: String?,
 
-    val counterpartyContactId: Long,
+    val counterpartyContactId: Long?,
 
     val postalCode: String?,
     val streetName: String,

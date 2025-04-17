@@ -212,7 +212,7 @@ object CounterpartyAddresses : Table("counterparty_addresses") {
     val counterpartyId = long("counterparty_id").references(Counterparties.id, onDelete = ReferenceOption.CASCADE)
     val countryId = long("country_id").references(Countries.id, onDelete = ReferenceOption.CASCADE)
     val counterpartyContactId =
-        long("contact_id").references(CounterpartyContacts.id, onDelete = ReferenceOption.CASCADE)
+        long("contact_id").references(CounterpartyContacts.id, onDelete = ReferenceOption.SET_NULL).nullable()
     val postalCode = varchar("postal_code", 20).nullable()
     val streetName = varchar("street_name", 255)
     val houseNumber = varchar("house_number", 50)
