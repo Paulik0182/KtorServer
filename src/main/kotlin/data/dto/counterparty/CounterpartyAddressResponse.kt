@@ -1,5 +1,6 @@
 package com.example.data.dto.counterparty
 
+import com.example.data.dto.dictionaries.CityResponse
 import com.example.data.dto.dictionaries.CountryResponse
 import kotlinx.serialization.Serializable
 
@@ -13,6 +14,10 @@ data class CounterpartyAddressResponse(
     val countryId: Long,
     val country: CountryResponse? = null,
     val countryName: String?,
+
+    val cityId: Long,
+    val city: CityResponse? = null,
+    val cityName: String?,
 
     val counterpartyContactId: Long?,
 

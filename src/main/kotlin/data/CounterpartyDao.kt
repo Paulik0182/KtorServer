@@ -3,11 +3,14 @@ package com.example.data
 import com.example.*
 import com.example.data.ProductDao.getCounterpartyName
 import com.example.data.dto.counterparty.*
+import com.example.data.dto.dictionaries.CityResponse
+import com.example.data.dto.dictionaries.CityTranslationResponse
 import com.example.data.dto.dictionaries.CountryResponse
 import com.example.data.dto.dictionaries.CountryTranslationResponse
 import com.example.data.dto.order.OrderItemResponse
 import com.example.data.dto.order.OrderResponse
 import com.example.data.dto.product.*
+import io.ktor.http.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -262,9 +265,13 @@ object CounterpartyDao {
         }
 
         data.addresses?.forEach { addr ->
+            // ✅ ВАЛИДАЦИЯ: перед вставкой адреса
+            validateCityBelongsToCountry(addr.cityId, addr.countryId)
+
             CounterpartyAddresses.insert {
                 it[counterpartyId] = id
                 it[countryId] = addr.countryId
+                it[cityId] = addr.cityId
                 it[postalCode] = addr.postalCode
                 it[streetName] = addr.streetName
                 it[houseNumber] = addr.houseNumber
@@ -356,6 +363,7 @@ object CounterpartyDao {
     private fun formatAddressString(it: CounterpartyAddressResponse): String =
         listOfNotNull(
             it.countryName,
+            it.cityName,
             it.streetName,
             it.houseNumber,
             it.locationNumber
@@ -455,13 +463,19 @@ object CounterpartyDao {
                 .map {
                     println("🧪 Строка: ${it[CounterpartyAddresses.id]}, contact_id: ${it[CounterpartyAddresses.counterpartyContactId]}")
 
-                    val countryId = it[Countries.id]
+                    val addressId = it[CounterpartyAddresses.id]
+                    val countryId = it[CounterpartyAddresses.countryId]
+                    val cityId = it[CounterpartyAddresses.cityId]
+
                     CounterpartyAddressResponse(
-                        id = it[CounterpartyAddresses.id],
+                        id = addressId,
                         counterpartyId = counterpartyId,
                         countryId = countryId,
                         country = getCountry(countryId, languageCode),
                         countryName = getCountryName(countryId),
+                        cityId = cityId,
+                        city = getCity(cityId, languageCode),
+                        cityName = getCityName(cityId),
                         counterpartyContactId = it[CounterpartyAddresses.counterpartyContactId],
                         streetName = it[CounterpartyAddresses.streetName] ?: "",
                         houseNumber = it[CounterpartyAddresses.houseNumber] ?: "",
@@ -478,6 +492,43 @@ object CounterpartyDao {
                 }
             addresses
         }
+
+    fun getCity(cityId: Long, languageCode: String = "ru"): CityResponse? = transaction {
+        val translations = CityTranslations
+            .selectAll()
+            .where {
+                (CityTranslations.cityId eq cityId) and
+                        (CityTranslations.languageCode eq languageCode)
+            }
+            .map {
+                CityTranslationResponse(
+                    id = it[CityTranslations.id],
+                    cityId = cityId,
+                    languageCode = it[CityTranslations.languageCode],
+                    name = it[CityTranslations.name]
+                )
+            }
+
+        Cities
+            .selectAll()
+            .where { Cities.id eq cityId }
+            .firstOrNull()?.let {
+                CityResponse(
+                    id = it[Cities.id],
+                    name = it[Cities.name],
+                    countryId = it[Cities.countryId],
+                    translations = translations
+                )
+            }
+    }
+
+    fun getCityName(cityId: Long): String? = transaction {
+        Cities
+            .selectAll()
+            .where { Cities.id eq cityId }
+            .map { it[Cities.name] }
+            .firstOrNull()
+    }
 
     fun getOrders(counterpartyId: Long): List<OrderResponse> = transaction {
         Orders.selectAll().where { Orders.counterpartyId eq counterpartyId }.map {
@@ -641,5 +692,14 @@ object CounterpartyDao {
                     measurementUnitAbbreviation = unitAbbr
                 )
             }
+    }
+
+    fun validateCityBelongsToCountry(cityId: Long, countryId: Long) {
+        val city = Cities.selectAll().where { Cities.id eq cityId }.singleOrNull()
+            ?: error(HttpStatusCode.BadRequest, "City not found")
+
+        if (city[Cities.countryId] != countryId) {
+            error(HttpStatusCode.BadRequest, "Selected city does not belong to the given country")
+        }
     }
 }

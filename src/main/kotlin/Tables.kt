@@ -211,6 +211,7 @@ object CounterpartyAddresses : Table("counterparty_addresses") {
     val id = long("id").autoIncrement()
     val counterpartyId = long("counterparty_id").references(Counterparties.id, onDelete = ReferenceOption.CASCADE)
     val countryId = long("country_id").references(Countries.id, onDelete = ReferenceOption.CASCADE)
+    val cityId = long("city_id").references(Cities.id, onDelete = ReferenceOption.CASCADE)
     val counterpartyContactId =
         long("contact_id").references(CounterpartyContacts.id, onDelete = ReferenceOption.SET_NULL).nullable()
     val postalCode = varchar("postal_code", 20).nullable()

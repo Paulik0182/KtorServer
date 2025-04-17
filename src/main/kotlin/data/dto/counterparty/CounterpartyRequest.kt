@@ -58,6 +58,7 @@ data class BankAccountRequest(
 @Serializable
 data class CounterpartyAddressRequest(
     val countryId: Long,
+    val cityId: Long,
     val postalCode: String?,
     val streetName: String,
     val houseNumber: String,
