@@ -65,7 +65,7 @@ object ProductDao {
                     productLinks = getProductLinks(productId),
                     productImages = getProductImages(productId),
                     productCounterparties = getProductCounterparties(productId),
-                    productSuppliers = getProductSuppliers(productId),
+                    productSuppliers = ProductSupplierDao.getProductSuppliers(productId),
                     productOrderItem = getProductOrders(productId),
                     categories = getProductCategories(productId),
                     categoryIds = getCategoryIds(productId),
@@ -124,7 +124,7 @@ object ProductDao {
                 productLinks = getProductLinks(productId),
                 productImages = getProductImages(productId),
                 productCounterparties = getProductCounterparties(productId),
-                productSuppliers = getProductSuppliers(productId),
+                productSuppliers = ProductSupplierDao.getProductSuppliers(productId),
                 productOrderItem = getProductOrders(productId),
                 categories = getProductCategories(productId),
                 categoryIds = getCategoryIds(productId),
@@ -185,7 +185,7 @@ object ProductDao {
     private fun deleteProductDependencies(productId: Long) {
         ProductCodes.deleteWhere { ProductCodes.productId eq productId }
         ProductImages.deleteWhere { ProductImages.productId eq productId }
-        ProductLinks.deleteWhere { ProductLinks.productId eq productId }
+        Links.deleteWhere { Links.productId eq productId }
         ProductCounterparties.deleteWhere { ProductCounterparties.productId eq productId }
         ProductSuppliers.deleteWhere { ProductSuppliers.productId eq productId }
         ProductCategories.deleteWhere { ProductCategories.productId eq productId }
@@ -319,10 +319,10 @@ object ProductDao {
             } get Urls.id) // Получаем id вставленной строки
 
             // Вставляем связь product <-> url
-            ProductLinks.insert {
-                it[ProductLinks.productId] = productId
-//                it[ProductLinks.counterpartyId] = link.counterpartyId ?: 0L
-                it[ProductLinks.urlId] = urlId
+            Links.insert {
+                it[Links.productId] = productId
+//                it[Links.counterpartyId] = link.counterpartyId ?: 0L
+                it[Links.urlId] = urlId
             }
         }
     }
@@ -343,7 +343,7 @@ object ProductDao {
     fun insertProductSuppliers(productId: Long, suppliers: List<ProductSupplierRequest>) = transaction {
         ProductSuppliers.batchInsert(suppliers) { supplier ->
             this[ProductSuppliers.productId] = productId
-            this[ProductSuppliers.supplierId] = supplier.supplierId
+            this[ProductSuppliers.counterpartyId] = supplier.counterpartyId
         }
     }
 
@@ -447,22 +447,6 @@ object ProductDao {
             }
     }
 
-    // Получение поставщиков товара
-    fun getProductSuppliers(productId: Long): List<ProductSupplierResponse> = transaction {
-        ProductSuppliers
-            .innerJoin(Counterparties)
-            .selectAll().where { ProductSuppliers.productId eq productId }
-            .map {
-                ProductSupplierResponse(
-                    id = it[ProductSuppliers.id],
-                    productId = it[ProductSuppliers.productId],
-                    productName = getProductName(it[ProductSuppliers.productId]),
-                    supplierId = it[ProductSuppliers.supplierId],
-                    supplierName = getCounterpartyName(it[ProductSuppliers.supplierId])
-                )
-            }
-    }
-
     // Получение заказчиков товара
     fun getProductOrders(productId: Long): List<OrderItemResponse> = transaction {
         OrderItems
@@ -489,12 +473,14 @@ object ProductDao {
             }
     }
 
+    // TODO переделать. Расписать подробнее метод
     fun getProductName(id: Long): String = transaction {
         Products.selectAll().where { Products.id eq id }
             .map { it[Products.name] }
             .singleOrNull() ?: "Неизвестный продукт"
     }
 
+    // TODO переделать. Расписать подробнее метод
     fun getCounterpartyName(id: Long): String = transaction {
         Counterparties.selectAll().where { Counterparties.id eq id }
             .map { it[Counterparties.companyName] }
@@ -519,17 +505,17 @@ object ProductDao {
     }
 
     // Получение ссылок на товар
-    fun getProductLinks(productId: Long): List<ProductLinkResponse> = transaction {
-        (ProductLinks innerJoin Urls).selectAll().where {
-            ProductLinks.productId eq productId
+    fun getProductLinks(productId: Long): List<LinkResponse> = transaction {
+        (Links innerJoin Urls).selectAll().where {
+            Links.productId eq productId
         }.map {
-            val urlId = it[ProductLinks.urlId]
+            val urlId = it[Links.urlId]
             val urlText = it[Urls.url]
 
-            ProductLinkResponse(
-                id = it[ProductLinks.id],
-                productId = it[ProductLinks.productId],
-                counterpartyId = it[ProductLinks.counterpartyId],
+            LinkResponse(
+                id = it[Links.id],
+                productId = it[Links.productId],
+                counterpartyId = it[Links.counterpartyId],
                 urlId = urlId,
                 urlName = urlText,
                 url = listOf(UrlsResponse(id = urlId, url = urlText))

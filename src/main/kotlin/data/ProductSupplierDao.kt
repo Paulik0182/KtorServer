@@ -2,8 +2,10 @@ package com.example.data
 
 import com.example.Counterparties
 import com.example.ProductSuppliers
+import com.example.data.ProductDao.getCounterpartyName
+import com.example.data.ProductDao.getProductName
+import com.example.data.dto.product.ProductSupplierResponse
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
@@ -15,6 +17,37 @@ import org.jetbrains.exposed.sql.transactions.transaction
  * Удалить поставщика от товара.
  */
 object ProductSupplierDao {
+
+    fun getProductSuppliersForCounterparty(id: Long): List<ProductSupplierResponse> = transaction {
+        ProductSuppliers
+            .selectAll()
+            .where { ProductSuppliers.counterpartyId eq id }
+            .map {
+                ProductSupplierResponse(
+                    id = it[ProductSuppliers.id],
+                    productId = it[ProductSuppliers.productId],
+                    productName = ProductDao.getProductName(it[ProductSuppliers.productId]),
+                    counterpartyId = it[ProductSuppliers.counterpartyId],
+                    counterpartyName = ProductDao.getCounterpartyName(it[ProductSuppliers.counterpartyId])
+                )
+            }
+    }
+
+    // Получение поставщиков товара
+    fun getProductSuppliers(productId: Long): List<ProductSupplierResponse> = transaction {
+        ProductSuppliers
+            .innerJoin(Counterparties)
+            .selectAll().where { ProductSuppliers.productId eq productId }
+            .map {
+                ProductSupplierResponse(
+                    id = it[ProductSuppliers.id],
+                    productId = it[ProductSuppliers.productId],
+                    productName = getProductName(it[ProductSuppliers.productId]),
+                    counterpartyId = it[ProductSuppliers.counterpartyId],
+                    counterpartyName = getCounterpartyName(it[ProductSuppliers.counterpartyId])
+                )
+            }
+    }
 
     /**
      * Получение списка поставщиков для товара
@@ -62,7 +95,7 @@ object ProductSupplierDao {
      * it[ProductSuppliers.productId] = productId
      *
      * Вставляем ID товара.
-     * it[ProductSuppliers.supplierId] = supplierId
+     * it[ProductSuppliers.counterpartyId] = supplierId
      *
      * Вставляем ID поставщика.
      * Метод создает связь между товаром и поставщиком.

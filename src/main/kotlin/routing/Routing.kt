@@ -215,7 +215,7 @@ fun Application.configureRouting() {
                 ?: return@get call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
 
             try {
-                val suppliers = ProductDao.getProductSuppliers(productId)
+                val suppliers = ProductSupplierDao.getProductSuppliers(productId)
                 call.respond(suppliers)
 //                call.respond(suppliers.map { it[Counterparties.name] })
             } catch (e: Exception) {

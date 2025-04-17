@@ -1,13 +1,5 @@
 package com.example
 
-import com.example.Categories.nullable
-import com.example.CounterpartyAddresses.nullable
-import com.example.CounterpartyBankAccounts.autoIncrement
-import com.example.CounterpartyBankAccounts.references
-import com.example.CounterpartyRepresentatives.nullable
-import com.example.Currencies.autoIncrement
-import com.example.Orders.default
-import com.example.Orders.nullable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.CurrentTimestamp
@@ -89,9 +81,9 @@ object OrderItems : Table("order_items") {
 object ProductSuppliers : Table("product_suppliers") {
     val id = long("id").autoIncrement() // ? возможно не нужно поле!
     val productId = long("product_id").references(Products.id)
-    val supplierId = long("supplier_id").references(Counterparties.id)
+    val counterpartyId = long("supplier_id").references(Counterparties.id)
 
-    override val primaryKey = PrimaryKey(productId, supplierId)
+    override val primaryKey = PrimaryKey(productId, counterpartyId)
 }
 
 object ProductImages : Table("product_images") {
@@ -103,7 +95,7 @@ object ProductImages : Table("product_images") {
     override val primaryKey = PrimaryKey(id)
 }
 
-object ProductLinks : Table("product_links") {
+object Links : Table("product_links") {
     val id = long("id").autoIncrement()
     val productId = long("product_id").references(Products.id, onDelete = ReferenceOption.CASCADE)
     val counterpartyId = long("counterparty_id").references(Counterparties.id, onDelete = ReferenceOption.CASCADE)
@@ -236,12 +228,12 @@ object CounterpartyAddresses : Table("counterparty_addresses") {
 
 object CounterpartyContacts : Table("counterparty_contacts") {
     val id = long("id").autoIncrement()
-    val counterpartyId = long("counterparty_id").references(Counterparties.id, onDelete = ReferenceOption.CASCADE)
+    val counterpartyId = long("counterparty_id").references(Counterparties.id, onDelete = ReferenceOption.SET_NULL).nullable()
     val contactType = varchar("contact_type", 50)
     val contactValue = varchar("contact_value", 100)
-    val countryCodeId = long("country_code_id").references(Countries.id, onDelete = ReferenceOption.CASCADE)
+    val countryCodeId = long("country_code_id").references(Countries.id, onDelete = ReferenceOption.SET_NULL).nullable()
     val representativeId =
-        long("representative_id").references(CounterpartyRepresentatives.id, onDelete = ReferenceOption.CASCADE)
+        long("representative_id").references(CounterpartyRepresentatives.id, onDelete = ReferenceOption.SET_NULL).nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

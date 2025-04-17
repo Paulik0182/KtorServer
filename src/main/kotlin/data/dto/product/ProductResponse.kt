@@ -1,6 +1,5 @@
 package com.example.data.dto.product
 
-import com.example.data.dto.*
 import com.example.data.dto.dictionaries.CategoryResponse
 import com.example.data.dto.dictionaries.MeasurementUnitResponse
 import com.example.data.dto.dictionaries.SubcategoryResponse
@@ -34,7 +33,7 @@ data class ProductResponse(
     val measurementUnitAbbreviation: String?,
 
     val productCodes: List<ProductCodeResponse> = emptyList(), // список кодов товара (штрих-коды, QR-коды).
-    val productLinks: List<ProductLinkResponse> = emptyList(), // список интернет-ссылок.
+    val productLinks: List<LinkResponse> = emptyList(), // список интернет-ссылок.
     val productImages: List<ProductImageResponse> = emptyList(), // для картинок
     val productCounterparties: List<ProductCounterpartyResponse> = emptyList(), // Информация о складах, контрагентах
     val productSuppliers: List<ProductSupplierResponse> = emptyList(), // Информация о Поставщике, контрагентах

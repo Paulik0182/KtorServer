@@ -1,6 +1,6 @@
 package com.example.data
 
-import com.example.ProductLinks
+import com.example.Links
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction

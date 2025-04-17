@@ -2,14 +2,14 @@ package com.example.data.dto.counterparty
 
 import com.example.data.dto.order.OrderResponse
 import com.example.data.dto.product.ProductCounterpartyResponse
-import com.example.data.dto.product.ProductLinkResponse
+import com.example.data.dto.product.LinkResponse
 import com.example.data.dto.product.ProductSupplierResponse
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class CounterpartyResponse(
     val id: Long? = null,
-    val shortName: String,
+    val shortName: String, // Краткое название или псевдоним
 
     val companyName: String?,
     val type: String,
@@ -19,15 +19,15 @@ data class CounterpartyResponse(
     val isSupplier: Boolean,
     val isWarehouse: Boolean,
     val isCustomer: Boolean,
-    val isLegalEntity: Boolean,
+    val isLegalEntity: Boolean,  // Юридическое лицо (true) или физическое (false)
 
-    val imagePath: String?,
+    val imagePath: String?, // Путь к логотипу/аватарке
 
     val nip: String?,
     val krs: String?,
 
-    val firstName: String?,
-    val lastName: String?,
+    val firstName: String?, // Только для физ. лиц
+    val lastName: String?, // Только для физ. лиц
 
     val counterpartyRepresentatives: List<RepresentativeResponse> = emptyList(),
     val representativesIds: List<Long>? = emptyList(),
@@ -51,8 +51,8 @@ data class CounterpartyResponse(
 
     val productCounterparties: List<ProductCounterpartyResponse> = emptyList(),
 
-    val productLinks: List<ProductLinkResponse>? = emptyList(),
-    val productLinkIds: List<Long>? = emptyList(),
+    val counterpartyLinks: List<LinkResponse>? = emptyList(),
+    val counterpartyLinkIds: List<Long>? = emptyList(),
 
     val productSuppliers: List<ProductSupplierResponse>? = emptyList(),
     val productSupplierIds: List<Long>? = emptyList(),

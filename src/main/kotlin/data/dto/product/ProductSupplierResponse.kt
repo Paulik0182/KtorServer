@@ -9,6 +9,6 @@ data class ProductSupplierResponse(
     val productId: Long,
     val productName: String,
 
-    val supplierId: Long,
-    val supplierName: String
+    val counterpartyId: Long,
+    val counterpartyName: String
 )

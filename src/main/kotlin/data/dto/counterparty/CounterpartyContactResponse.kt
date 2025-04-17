@@ -9,7 +9,7 @@ data class CounterpartyContactResponse(
     val counterpartyName: String?,
     val contactType: String,
     val contactValue: String,
-    val countryCodeId: Long,
+    val countryCodeId: Long?,
     val countryName: String?,
     val representativeId: Long?,
     val representativeName: String?,
