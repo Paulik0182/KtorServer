@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 data class CounterpartyAddressResponse(
     val id: Long? = null,
     val counterpartyId: Long,
-    val counterpartyShortName: List<String> = emptyList(),
+    val counterpartyShortName: List<String>? = emptyList(),
     val counterpartyFirstLastName: List<String>? = emptyList(), // нужна строка из имени и фамилии контрагента, если он есть
 
     val countryId: Long,
@@ -30,5 +30,5 @@ data class CounterpartyAddressResponse(
 
     val entranceNumber: String?,
     val floor: String?,
-    val numberIntercom : String?,
+    val numberIntercom: String?,
 )

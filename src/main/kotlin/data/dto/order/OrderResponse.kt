@@ -8,7 +8,7 @@ import java.time.Instant
 data class OrderResponse(
     val id: Long? = null,
     val counterpartyId: Long,
-    val counterpartyName: String,
+    val counterpartyName: String?,
     val orderStatus: Int,
 
 //    @Serializable(with = LocalDateTimeSerializer::class)

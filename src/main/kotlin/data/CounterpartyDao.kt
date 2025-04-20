@@ -9,7 +9,10 @@ import com.example.data.dto.dictionaries.CountryResponse
 import com.example.data.dto.dictionaries.CountryTranslationResponse
 import com.example.data.dto.order.OrderItemResponse
 import com.example.data.dto.order.OrderResponse
-import com.example.data.dto.product.*
+import com.example.data.dto.product.CurrencyResponse
+import com.example.data.dto.product.LinkResponse
+import com.example.data.dto.product.ProductCounterpartyResponse
+import com.example.data.dto.product.UrlsResponse
 import io.ktor.http.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -285,6 +288,12 @@ object CounterpartyDao {
         }
 
         data.productCounterparties.forEach { pc ->
+            // ✅ ПРОВЕРКА: существует ли продукт с таким id
+            val productExists = Products.selectAll().where { Products.id eq pc.productId }.count() > 0
+            if (!productExists) {
+                error("Продукт с id=${pc.productId} не найден — невозможно создать связанного контрагента")
+            }
+
             ProductCounterparties.insert {
                 it[counterpartyId] = id
                 it[productId] = pc.productId
@@ -486,7 +495,7 @@ object CounterpartyDao {
                         entranceNumber = it[CounterpartyAddresses.entranceNumber],
                         floor = it[CounterpartyAddresses.floor],
                         numberIntercom = it[CounterpartyAddresses.numberIntercom],
-                        counterpartyShortName = listOf(getCounterpartyName(counterpartyId)),
+                        counterpartyShortName = getCounterpartyName(counterpartyId)?.let { listOf(it) },
                         counterpartyFirstLastName = listOf(getCounterpartyFullName(counterpartyId))
                     )
                 }

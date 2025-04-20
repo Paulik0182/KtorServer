@@ -9,7 +9,7 @@ data class ProductCounterpartyResponse(
     val productId: Long,
     val productName: String,
     val counterpartyId: Long,
-    val counterpartyName: String,
+    val counterpartyName: String?,
 //    val counterparty: CounterpartyResponse,
     val stockQuantity: Int, // Количество товара у контрагента (склад)
     val role: String, // Роль (например, "supplier", "warehouse") !Пока это поле не используем, в таблице контрагента есть флаги для обозначения типа контрагента

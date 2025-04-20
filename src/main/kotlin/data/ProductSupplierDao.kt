@@ -5,7 +5,7 @@ import com.example.ProductSuppliers
 import com.example.data.ProductDao.getCounterpartyName
 import com.example.data.ProductDao.getProductName
 import com.example.data.dto.product.ProductSupplierResponse
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
@@ -28,7 +28,7 @@ object ProductSupplierDao {
                     productId = it[ProductSuppliers.productId],
                     productName = ProductDao.getProductName(it[ProductSuppliers.productId]),
                     counterpartyId = it[ProductSuppliers.counterpartyId],
-                    counterpartyName = ProductDao.getCounterpartyName(it[ProductSuppliers.counterpartyId])
+                    counterpartyName = it[ProductSuppliers.counterpartyId]?.let { getCounterpartyName(it) }
                 )
             }
     }
@@ -44,7 +44,7 @@ object ProductSupplierDao {
                     productId = it[ProductSuppliers.productId],
                     productName = getProductName(it[ProductSuppliers.productId]),
                     counterpartyId = it[ProductSuppliers.counterpartyId],
-                    counterpartyName = getCounterpartyName(it[ProductSuppliers.counterpartyId])
+                    counterpartyName = it[ProductSuppliers.counterpartyId]?.let { getCounterpartyName(it) }
                 )
             }
     }

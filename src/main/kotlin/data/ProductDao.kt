@@ -8,7 +8,8 @@ import com.example.data.CategoryDao.getSubcategoryIds
 import com.example.data.CategoryDao.insertProductSubcategories
 import com.example.data.ProductImageDao.getProductImages
 import com.example.data.ProductImageDao.insertProductImagePath
-import com.example.data.dto.dictionaries.*
+import com.example.data.dto.dictionaries.MeasurementUnitResponse
+import com.example.data.dto.dictionaries.MeasurementUnitTranslationResponse
 import com.example.data.dto.order.OrderItemResponse
 import com.example.data.dto.product.*
 import io.ktor.http.*
@@ -481,11 +482,13 @@ object ProductDao {
     }
 
     // TODO переделать. Расписать подробнее метод
-    fun getCounterpartyName(id: Long): String = transaction {
-        Counterparties.selectAll().where { Counterparties.id eq id }
-            .map { it[Counterparties.companyName] }
-            .singleOrNull() ?: "Нет названия фирмы"
+    fun getCounterpartyName(id: Long): String? = transaction {
+        Counterparties
+            .selectAll().where { Counterparties.id eq id }
+            .map { it[Counterparties.companyName] } // может быть null
+            .firstOrNull()
     }
+
 
     // Получение кодов товара
     fun getProductCodes(productId: Long): List<ProductCodeResponse> = transaction {

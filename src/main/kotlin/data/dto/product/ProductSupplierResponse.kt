@@ -10,5 +10,5 @@ data class ProductSupplierResponse(
     val productName: String,
 
     val counterpartyId: Long,
-    val counterpartyName: String
+    val counterpartyName: String?
 )

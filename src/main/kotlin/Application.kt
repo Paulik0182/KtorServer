@@ -1,8 +1,6 @@
 package com.example
 
-import com.example.routing.categoryRoutes
-import com.example.routing.configureRouting
-import com.example.routing.imageRoutes
+import com.example.routing.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.http.content.*
@@ -39,6 +37,8 @@ fun Application.module() {
     routing {
         categoryRoutes()
         imageRoutes()
+        counterpartyRoutes()
+        dictionaryRoutes()
 
         static("/uploads") {
             files("uploads")

@@ -32,7 +32,9 @@ data class ProductCreateRequest(
 data class ProductCodeRequest(val code: String)
 
 @Serializable
-data class ProductLinkRequest(val url: String)
+data class ProductLinkRequest(
+    val url: String
+)
 
 @Serializable
 data class ProductImageRequest(
