@@ -711,4 +711,20 @@ object CounterpartyDao {
             error(HttpStatusCode.BadRequest, "Selected city does not belong to the given country")
         }
     }
+
+    fun updateContacts(counterpartyId: Long, contacts: List<CounterpartyContactRequest>) = transaction {
+        // Удаляем старые
+        CounterpartyContacts.deleteWhere { CounterpartyContacts.counterpartyId eq counterpartyId }
+
+        // Добавляем новые
+        contacts.forEach { contact ->
+            CounterpartyContacts.insert {
+                it[this.counterpartyId] = counterpartyId
+                it[contactType] = contact.contactType ?: ""
+                it[contactValue] = contact.contactValue ?: ""
+                it[countryCodeId] = contact.countryCodeId
+                it[representativeId] = contact.representativeId
+            }
+        }
+    }
 }

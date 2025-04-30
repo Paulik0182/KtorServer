@@ -1,6 +1,7 @@
 package com.example.routing
 
 import com.example.data.CounterpartyDao
+import com.example.data.dto.counterparty.CounterpartyContactRequest
 import com.example.data.dto.counterparty.CounterpartyRequest
 import io.ktor.http.*
 import io.ktor.server.request.*
@@ -79,6 +80,23 @@ fun Route.counterpartyRoutes() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError, "Ошибка при удалении: ${e.localizedMessage}")
+            }
+        }
+
+        patch("/{id}/contacts") {
+            val id = call.parameters["id"]?.toLongOrNull()
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+                return@patch
+            }
+
+            val contacts = call.receive<List<CounterpartyContactRequest>>()
+            try {
+                CounterpartyDao.updateContacts(id, contacts)
+                call.respond(HttpStatusCode.OK, "Контакты обновлены")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
             }
         }
     }
