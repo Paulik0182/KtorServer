@@ -359,7 +359,7 @@ object CounterpartyDao {
 
     private fun formatContactString(it: CounterpartyContactResponse): String {
         return when (it.contactType) {
-            "phone" -> "Тел. ${it.countryPhoneCode} ${it.contactValue}"
+            "phone" -> "Tel. ${it.countryPhoneCode} ${it.contactValue}"
             "fax" -> "Fax: ${it.countryPhoneCode} ${it.contactValue}"
             "email" -> "Email: ${it.contactValue}"
             else -> "${it.contactType}: ${it.contactValue}"
