@@ -39,6 +39,7 @@ fun Application.module() {
         imageRoutes()
         counterpartyRoutes()
         dictionaryRoutes()
+        countryRoutes()
 
         static("/uploads") {
             files("uploads")
