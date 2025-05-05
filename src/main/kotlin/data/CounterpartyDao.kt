@@ -716,6 +716,13 @@ object CounterpartyDao {
         // Удаляем старые
         CounterpartyContacts.deleteWhere { CounterpartyContacts.counterpartyId eq counterpartyId }
 
+        val allowedTypes = setOf("phone", "email", "fax", "other")
+        contacts.forEach { contact ->
+            if (contacts.any { it.contactType !in allowedTypes }) {
+                error("Обнаружены контакты с недопустимыми типами")
+            }
+        }
+
         // Добавляем новые
         contacts.forEach { contact ->
             CounterpartyContacts.insert {
