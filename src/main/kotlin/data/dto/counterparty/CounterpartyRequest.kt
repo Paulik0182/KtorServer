@@ -33,6 +33,29 @@ data class CounterpartyRequest(
 )
 
 @Serializable
+data class CounterpartyPatchRequest(
+    val shortName: String,
+
+    val companyName: String?,
+    val type: String,
+
+    val isSupplier: Boolean = false,
+    val isWarehouse: Boolean = false,
+    val isCustomer: Boolean = false,
+    val isLegalEntity: Boolean = false,
+
+    val nip: String?,
+    val krs: String?,
+    val firstName: String?,
+    val lastName: String?
+)
+
+@Serializable
+data class CounterpartyImageRequest(
+    val imagePath: String?
+)
+
+@Serializable
 data class RepresentativeRequest(
     val fullName: String?,
     val position: Int = 0,

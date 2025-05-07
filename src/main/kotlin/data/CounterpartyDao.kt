@@ -16,6 +16,7 @@ import com.example.data.dto.product.UrlsResponse
 import io.ktor.http.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 
 // ✅ DAO и маршруты для Counterparty (контрагента)
@@ -732,6 +733,96 @@ object CounterpartyDao {
                 it[countryCodeId] = contact.countryCodeId
                 it[representativeId] = contact.representativeId
             }
+        }
+    }
+
+    fun updateBasicFields(id: Long, patchRequest: CounterpartyPatchRequest) = transaction {
+        Counterparties.update({ Counterparties.id eq id }) {
+            it[shortName] = patchRequest.shortName
+            it[companyName] = patchRequest.companyName ?: patchRequest.shortName
+            it[type] = patchRequest.type
+            it[isSupplier] = patchRequest.isSupplier
+            it[isWarehouse] = patchRequest.isWarehouse
+            it[isCustomer] = patchRequest.isCustomer
+            it[isLegalEntity] = patchRequest.isLegalEntity
+            it[nip] = patchRequest.nip
+            it[krs] = patchRequest.krs
+            it[firstName] = patchRequest.firstName
+            it[lastName] = patchRequest.lastName
+        }
+    }
+
+    fun updateAddresses(counterpartyId: Long, addresses: List<CounterpartyAddressRequest>) = transaction {
+        // Удаляем все старые адреса контрагента
+        CounterpartyAddresses.deleteWhere { CounterpartyAddresses.counterpartyId eq counterpartyId }
+
+        // Вставляем новые адреса
+        addresses.forEach { address ->
+            // Валидация: проверяем, что город принадлежит стране
+            validateCityBelongsToCountry(address.cityId, address.countryId)
+
+            CounterpartyAddresses.insert {
+                it[this.counterpartyId] = counterpartyId
+                it[countryId] = address.countryId
+                it[cityId] = address.cityId
+                it[postalCode] = address.postalCode
+                it[streetName] = address.streetName
+                it[houseNumber] = address.houseNumber
+                it[locationNumber] = address.locationNumber
+                it[latitude] = address.latitude?.toBigDecimal()
+                it[longitude] = address.longitude?.toBigDecimal()
+                it[entranceNumber] = address.entranceNumber
+                it[floor] = address.floor
+                it[numberIntercom] = address.numberIntercom
+            }
+        }
+    }
+
+    fun updateRepresentatives(counterpartyId: Long, patchRequest: RepresentativeRequest) = transaction {
+        // Удаляем старых представителей и их контакты
+        val repIds = CounterpartyRepresentatives
+            .selectAll().where { CounterpartyRepresentatives.counterpartyId eq counterpartyId }
+            .map { it[CounterpartyRepresentatives.id] }
+
+        // Удаляем их контакты и самих представителей
+        CounterpartyContacts.deleteWhere { CounterpartyContacts.representativeId inList repIds }
+        CounterpartyRepresentatives.deleteWhere { CounterpartyRepresentatives.counterpartyId eq counterpartyId }
+
+        // Вставляем нового представителя
+        val repId = CounterpartyRepresentatives.insert {
+            it[this.counterpartyId] = counterpartyId
+            it[fullName] = patchRequest.fullName ?: "Без имени"
+            it[position] = patchRequest.position
+        } get CounterpartyRepresentatives.id
+
+        patchRequest.contacts.forEach { contact ->
+            CounterpartyContacts.insert {
+                it[this.counterpartyId] = counterpartyId
+                it[contactType] = contact.contactType ?: ""
+                it[contactValue] = contact.contactValue ?: ""
+                it[countryCodeId] = contact.countryCodeId
+                it[representativeId] = repId
+            }
+        }
+    }
+
+    fun updateBankAccounts(counterpartyId: Long, patchRequest: BankAccountRequest) = transaction {
+        // Удаляем старые банковские счета
+        CounterpartyBankAccounts.deleteWhere { CounterpartyBankAccounts.counterpartyId eq counterpartyId }
+
+        // Вставляем новый
+        CounterpartyBankAccounts.insert {
+            it[this.counterpartyId] = counterpartyId
+            it[accountNumber] = patchRequest.accountNumber ?: ""
+            it[bankName] = patchRequest.bankName
+            it[swiftCode] = patchRequest.swiftCode ?: ""
+            it[currencyId] = patchRequest.currencyId
+        }
+    }
+
+    fun updateImagePath(counterpartyId: Long, imagePath: String?) = transaction {
+        Counterparties.update({ Counterparties.id eq counterpartyId }) {
+            it[Counterparties.imagePath] = imagePath
         }
     }
 }
