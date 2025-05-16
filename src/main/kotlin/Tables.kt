@@ -1,9 +1,38 @@
 package com.example
 
+import com.example.routing.UserRole
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.CurrentTimestamp
+import org.jetbrains.exposed.sql.javatime.datetime
 import org.jetbrains.exposed.sql.javatime.timestamp
+
+object Users : Table("users") {
+    val id = long("id").autoIncrement()
+    val email = varchar("email", 255).uniqueIndex()
+    val hashedPassword = varchar("hashed_password", 255)
+    val role = enumerationByName("role", 50, UserRole::class)
+    val counterpartyId = long("counterparty_id").references(Counterparties.id).nullable() // если связан
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+object UserSessions : Table("user_sessions") {
+    val id = long("id").autoIncrement()
+    val userId = long("user_id").references(Users.id)
+    val token = varchar("token", 512) // JWT
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val expiresAt = datetime("expires_at")
+    val deviceInfo = varchar("device_info", 255).nullable()
+    override val primaryKey = PrimaryKey(id)
+}
+
+object PasswordRecoveryTokens : Table("password_recovery_tokens") {
+    val id = long("id").autoIncrement()
+    val userId = long("user_id").references(Users.id)
+    val token = varchar("token", 255).uniqueIndex()
+    val expiresAt = datetime("expires_at")
+}
 
 object Counterparties : Table("counterparties") {
     val id = long("id").autoIncrement()

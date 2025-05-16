@@ -1,8 +1,12 @@
 package com.example
 
+import com.example.data.UserSessionDao
+import com.example.data.dto.user.UserPrincipal
 import com.example.routing.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.http.content.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
@@ -24,6 +28,9 @@ fun main(args: Array<String>) {
  */
 
 fun Application.module() {
+
+    DatabaseFactory.init() // Подключаем базу данных
+
     install(ContentNegotiation) {
         json(Json {
             prettyPrint = true // форматирует JSON в читаемом виде (удобно для отладки).
@@ -32,7 +39,19 @@ fun Application.module() {
         })
     }
 
-    DatabaseFactory.init() // Подключаем базу данных
+    install(Authentication) {
+        jwt("auth-jwt") {
+            verifier(JwtConfig.verifier) // проверка подписи токена
+            validate { credential ->  // обработка валидного токена
+                val userId = credential.payload.getClaim("userId").asLong()
+                val role = credential.payload.getClaim("role").asString()
+                val rawToken = credential.payload.getClaim("token").asString()
+
+                val sessionValid = UserSessionDao.isValidToken(userId, rawToken)
+                if (sessionValid) UserPrincipal(userId, role) else null
+            }
+        }
+    }
 
     routing {
         categoryRoutes()
@@ -40,6 +59,7 @@ fun Application.module() {
         counterpartyRoutes()
         dictionaryRoutes()
         countryRoutes()
+        authRoutes()
 
         static("/uploads") {
             files("uploads")
