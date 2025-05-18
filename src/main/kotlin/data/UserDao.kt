@@ -7,6 +7,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
 object UserDao {
+
     fun register(email: String, password: String, role: UserRole = UserRole.CUSTOMER, counterpartyId: Long?): Long {
         return transaction {
             val existing = Users.selectAll().where { Users.email eq email }.firstOrNull()
@@ -36,4 +37,28 @@ object UserDao {
         }
     }
 
+    fun exists(userId: Long): Boolean {
+        return transaction {
+            Users.selectAll().where { Users.id eq userId }.count() > 0
+        }
+    }
+
+    // Для сброса пароля
+    fun updatePassword(userId: Long, newPassword: String) {
+        val hash = BCrypt.hashpw(newPassword, BCrypt.gensalt())
+        transaction {
+            Users.update({ Users.id eq userId }) {
+                it[hashedPassword] = hash
+            }
+        }
+    }
+
+    fun findUserIdByEmail(email: String): Long? {
+        return transaction {
+            Users
+                .selectAll().where { Users.email eq email }
+                .map { it[Users.id] }
+                .singleOrNull()
+        }
+    }
 }

@@ -2,6 +2,7 @@ package com.example
 
 import com.example.data.UserSessionDao
 import com.example.data.dto.user.UserPrincipal
+import com.example.data.dto.user.respondUnauthorized
 import com.example.routing.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -44,11 +45,15 @@ fun Application.module() {
             verifier(JwtConfig.verifier) // проверка подписи токена
             validate { credential ->  // обработка валидного токена
                 val userId = credential.payload.getClaim("userId").asLong()
-                val role = credential.payload.getClaim("role").asString()
+                val role = credential.payload.getClaim("role").asString()?.let { UserRole.valueOf(it) }
                 val rawToken = credential.payload.getClaim("token").asString()
 
                 val sessionValid = UserSessionDao.isValidToken(userId, rawToken)
-                if (sessionValid) UserPrincipal(userId, role) else null
+                if (sessionValid) role?.let { UserPrincipal(userId, it) } else null
+            }
+
+            challenge { _, _ ->
+                call.respondUnauthorized("Пользователь не залогинен")
             }
         }
     }
