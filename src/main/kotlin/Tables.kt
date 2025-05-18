@@ -3,6 +3,7 @@ package com.example
 import com.example.routing.UserRole
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.javatime.CurrentDateTime
 import org.jetbrains.exposed.sql.javatime.CurrentTimestamp
 import org.jetbrains.exposed.sql.javatime.datetime
 import org.jetbrains.exposed.sql.javatime.timestamp
@@ -13,6 +14,11 @@ object Users : Table("users") {
     val hashedPassword = varchar("hashed_password", 255)
     val role = enumerationByName("role", 50, UserRole::class)
     val counterpartyId = long("counterparty_id").references(Counterparties.id).nullable() // если связан
+    val isBlocked = bool("is_blocked").default(false) // пользователь заблокирован
+    val blockedByAdmin = bool("blocked_by_admin").default(false) // если true — заблокировал админ, если false — сам себя удалил
+    val blockedAt = datetime("blocked_at").nullable() // Когда пользователь был заблокирован
+    val blockComment = varchar("block_comment", 255).nullable() // Причина блокировки
+    val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
 
     override val primaryKey = PrimaryKey(id)
 }

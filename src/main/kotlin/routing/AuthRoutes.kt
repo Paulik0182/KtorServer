@@ -140,7 +140,7 @@ fun Route.authRoutes() {
                 call.respond(mapOf("status" to "user logged out"))
             }
 
-            // // Удаляем все сессии и остается только админ!
+            // Удаляем все сессии и остается только админ!
             post("/admin/logout_all_except_self") {
                 val principal = call.principal<UserPrincipal>()!!
                 if (principal.role != UserRole.SYSTEM_ADMIN) {
@@ -149,6 +149,51 @@ fun Route.authRoutes() {
 
                 UserSessionDao.deleteAllSessionsExceptUser(principal.userId)
                 call.respond(mapOf("status" to "all other sessions removed"))
+            }
+
+            // Пользователь сам себя "удаляет" - блокирует
+            post("/delete_account") {
+                val principal = call.principal<UserPrincipal>()!!
+                UserDao.markUserAsDeleted(principal.userId)
+                UserSessionDao.deleteAllSessionsForUser(principal.userId)
+                call.respond(mapOf("status" to "account marked as deleted"))
+            }
+
+            // Админ блокирует пользователя
+            post("/admin/block_user") {
+                val principal = call.principal<UserPrincipal>()!!
+                if (principal.role != UserRole.SYSTEM_ADMIN) {
+                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("Недостаточно прав"))
+                }
+
+                val request = call.receive<BlockUserRequest>() // data class с userId и comment
+                val userId = request.userId
+                if (!UserDao.exists(userId)) {
+                    return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("Пользователь не найден"))
+                }
+
+                try {
+                    UserDao.blockUserByAdmin(userId, request.comment)
+                    UserSessionDao.deleteAllSessionsByAdmin(userId)
+                    call.respond(mapOf("status" to "user blocked"))
+                } catch (e: IllegalStateException) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Ошибка"))
+                }
+            }
+
+            // Восстановление пользователя
+            post("/admin/unblock_user") {
+                val principal = call.principal<UserPrincipal>()!!
+                if (principal.role != UserRole.SYSTEM_ADMIN) {
+                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("Недостаточно прав"))
+                }
+
+                val request = call.receive<Map<String, Long>>()
+                val userId = request["userId"]
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userId обязателен"))
+
+                UserDao.unblockUser(userId)
+                call.respond(mapOf("status" to "user unblocked"))
             }
         }
     }
