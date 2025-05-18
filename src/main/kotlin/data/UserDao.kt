@@ -26,7 +26,7 @@ object UserDao {
         }
     }
 
-    fun validateLogin(email: String, password: String): Pair<Long, UserRole> {
+    fun validateLogin(email: String, password: String): Triple<Long, UserRole, Long?> {
         return transaction {
             val row = Users
                 .selectAll()
@@ -47,11 +47,10 @@ object UserDao {
                 error(msg)
             }
 
-            if (!BCrypt.checkpw(password, row[Users.hashedPassword])) {
-                error("Неверный логин или пароль")
-            }
+            val valid = BCrypt.checkpw(password, row[Users.hashedPassword])
+            if (!valid) error("Неверный логин или пароль")
 
-            row[Users.id] to row[Users.role]
+            Triple(row[Users.id], row[Users.role], row[Users.counterpartyId])
         }
     }
 

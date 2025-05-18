@@ -29,9 +29,15 @@ fun Route.authRoutes() {
         post("/login") {
             val request = call.receive<LoginRequest>()
             try {
-                val (userId, role) = UserDao.validateLogin(request.email, request.password)
+                val (userId, role, counterpartyId) = UserDao.validateLogin(request.email, request.password)
                 val rawToken = UUID.randomUUID().toString()
-                val token = JwtConfig.makeToken(userId, role.name, rawToken)
+
+                val token = JwtConfig.makeToken(
+                    userId = userId,
+                    role = role.name,
+                    rawToken = rawToken,
+                    counterpartyId = counterpartyId // ← добавлено
+                )
                 // Сохраняем сессию
                 UserSessionDao.addSession(
                     userId = userId,
@@ -73,7 +79,7 @@ fun Route.authRoutes() {
         authenticate("auth-jwt") {
             get("/me") {
                 val principal = call.principal<UserPrincipal>()!!
-                call.respond(MeResponse(principal.userId, principal.role.name))
+                call.respond(MeResponse(principal.userId, principal.role.name, principal.counterpartyId))
             }
 
             post("/logout") {

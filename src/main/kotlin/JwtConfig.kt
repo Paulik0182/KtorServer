@@ -17,7 +17,7 @@ object JwtConfig {
         .withIssuer(issuer)
         .build()
 
-    fun makeToken(userId: Long, role: String, rawToken: String): String {
+    fun makeToken(userId: Long, role: String, rawToken: String, counterpartyId: Long?): String {
         val now = System.currentTimeMillis()
         return JWT.create()
             .withIssuer(issuer)
@@ -25,6 +25,7 @@ object JwtConfig {
             .withClaim("role", role)
             .withClaim("token", rawToken) // добавляем токен внутрь как обычный claim
             .withExpiresAt(Date(now + validityInMs))
+            .withClaim("counterpartyId", counterpartyId)
             .sign(algorithm)
     }
 }

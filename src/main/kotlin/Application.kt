@@ -47,9 +47,10 @@ fun Application.module() {
                 val userId = credential.payload.getClaim("userId").asLong()
                 val role = credential.payload.getClaim("role").asString()?.let { UserRole.valueOf(it) }
                 val rawToken = credential.payload.getClaim("token").asString()
+                val counterpartyId = credential.payload.getClaim("counterpartyId")?.asLong()
 
                 val sessionValid = UserSessionDao.isValidToken(userId, rawToken)
-                if (sessionValid) role?.let { UserPrincipal(userId, it) } else null
+                if (sessionValid) role?.let { UserPrincipal(userId, it, counterpartyId) } else null
             }
 
             challenge { _, _ ->
