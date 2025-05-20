@@ -1,6 +1,7 @@
 package com.example.data
 
 import com.example.Users
+import com.example.data.error.LoginException
 import com.example.routing.UserRole
 import org.mindrot.jbcrypt.BCrypt
 import org.jetbrains.exposed.sql.*
@@ -31,24 +32,24 @@ object UserDao {
             val row = Users
                 .selectAll()
                 .where { Users.email eq email }
-                .firstOrNull() ?: error("Неверный логин или пароль")
+                .firstOrNull() ?: throw LoginException("wrong_credentials", "Неверный логин или пароль")
 
             if (row[Users.isBlocked]) {
                 val blockedByAdmin = row[Users.blockedByAdmin]
                 val blockedAt = row[Users.blockedAt]
                 val daysSinceBlock = blockedAt?.let { Duration.between(it, LocalDateTime.now()).toDays() } ?: 0
 
-                val msg = when {
-                    blockedByAdmin -> "Вы заблокированы, обратитесь в поддержку"
-                    daysSinceBlock > 30 -> "Ранее вы имели аккаунт но удалили его, обратитесь в поддержку" // TODO Нужно придумать получше сценарий
-                    else -> "Пользователь будет удален через 30 дней, за восстановление аккаунта можно обратиться к администратору"
+                val (code, msg) = when {
+                    blockedByAdmin -> "user_blocked_admin" to "Вы заблокированы, обратитесь в поддержку"
+                    daysSinceBlock > 30 -> "user_deleted_self" to "Ваш аккаунт был удалён. Обратитесь в поддержку" // TODO Нужно придумать получше сценарий
+                    else -> "user_soft_deleted" to "Аккаунт будет удален через 30 дней, за восстановление аккаунта можно обратиться в поддержку"
                 }
 
-                error(msg)
+                throw LoginException(code, msg)
             }
 
             val valid = BCrypt.checkpw(password, row[Users.hashedPassword])
-            if (!valid) error("Неверный логин или пароль")
+            if (!valid) throw LoginException("wrong_credentials", "Неверный логин или пароль")
 
             Triple(row[Users.id], row[Users.role], row[Users.counterpartyId])
         }

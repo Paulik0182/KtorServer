@@ -5,6 +5,8 @@ import com.example.data.PasswordTokenDao
 import com.example.data.UserDao
 import com.example.data.UserSessionDao
 import com.example.data.dto.user.*
+import com.example.data.error.LoginErrorResponse
+import com.example.data.error.LoginException
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.request.*
@@ -46,8 +48,13 @@ fun Route.authRoutes() {
                     deviceInfo = request.deviceInfo
                 )
                 call.respond(mapOf("token" to token))
-            } catch (e: IllegalStateException) {
-                call.respond(HttpStatusCode.Unauthorized, e.message ?: "Ошибка авторизации")
+            } catch (e: LoginException) {
+                call.respond(HttpStatusCode.Unauthorized, LoginErrorResponse(e.code, e.message))
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    LoginErrorResponse("unknown_error", "Внутренняя ошибка")
+                )
             }
         }
 
