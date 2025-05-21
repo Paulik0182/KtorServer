@@ -5,6 +5,7 @@ import com.example.data.PasswordTokenDao
 import com.example.data.UserDao
 import com.example.data.UserSessionDao
 import com.example.data.dto.user.*
+import com.example.data.error.AuthException
 import com.example.data.error.LoginErrorResponse
 import com.example.data.error.LoginException
 import io.ktor.http.*
@@ -12,20 +13,24 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import java.time.Duration
 import java.util.*
 
 fun Route.authRoutes() {
     route("/auth") {
+
         post("/register") {
-            val request = call.receive<RegisterRequest>()
-            val userId = UserDao.register(
-                request.email,
-                request.password,
-                role = request.role,
-                counterpartyId = null
-            )
-            call.respond(mapOf("userId" to userId))
+            try {
+                val request = call.receive<RegisterRequest>()
+                val userId = UserDao.register(
+                    request.email,
+                    request.password,
+                    role = request.role,
+                    counterpartyId = null
+                )
+                call.respond(mapOf("userId" to userId))
+            } catch (e: AuthException) {
+                call.respond(HttpStatusCode.BadRequest, LoginErrorResponse(e.code, e.message))
+            }
         }
 
         post("/login") {
@@ -60,27 +65,36 @@ fun Route.authRoutes() {
 
         // Запросить сброс пароля
         post("/request_password_reset") {
-            val request = call.receive<ResetRequest>() // содержит email
-            val userId = UserDao.findUserIdByEmail(request.email)
-                ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("Пользователь не найден"))
-
-            val token = UUID.randomUUID().toString()
-            PasswordTokenDao.storeToken(userId, token, Duration.ofMinutes(15))
-
-            val link = "https://example.com/reset_password?token=$token"
-            PasswordTokenDao.sendEmail(request.email, "Сброс пароля: $link")
-
-            call.respond(mapOf("status" to "reset link sent"))
+            val request = call.receive<ResetRequest>()
+            try {
+                val token = UserDao.requestPasswordReset(request.email)
+                val link = "https://example.com/reset_password?token=$token"
+                PasswordTokenDao.sendEmail(request.email, "Сброс пароля: $link")
+                call.respond(mapOf("status" to "reset link sent"))
+            } catch (e: AuthException) {
+                call.respond(HttpStatusCode.BadRequest, LoginErrorResponse(e.code, e.message))
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    LoginErrorResponse("internal_error", "Внутренняя ошибка")
+                )
+            }
         }
 
         //  Сбросить пароль
         post("/reset_password") {
-            val request = call.receive<ResetPasswordRequest>() // содержит: token + newPassword
-            val userId = PasswordTokenDao.validateAndConsumeToken(request.token)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("Неверный или просроченный токен"))
-
-            UserDao.updatePassword(userId, request.newPassword)
-            call.respond(mapOf("status" to "password changed"))
+            val request = call.receive<ResetPasswordRequest>()
+            try {
+                UserDao.resetPassword(request.token, request.newPassword)
+                call.respond(mapOf("status" to "password changed"))
+            } catch (e: AuthException) {
+                call.respond(HttpStatusCode.BadRequest, LoginErrorResponse(e.code, e.message))
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    LoginErrorResponse("internal_error", "Внутренняя ошибка")
+                )
+            }
         }
 
         authenticate("auth-jwt") {
