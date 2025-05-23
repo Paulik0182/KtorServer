@@ -2,7 +2,9 @@ package com.example.routing
 
 import com.example.data.CounterpartyDao
 import com.example.data.dto.counterparty.*
+import com.example.data.dto.user.UserPrincipal
 import io.ktor.http.*
+import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -23,18 +25,27 @@ fun Route.counterpartyRoutes() {
             }
         }
 
-        get("/{id}") {
-            val id = call.parameters["id"]?.toLongOrNull()
-            if (id == null) {
-                call.respond(HttpStatusCode.BadRequest, "ID контрагента не передан или некорректен")
-                return@get
-            }
+        authenticate("auth-jwt") {
+            get("/{id}") {
+                val principal = call.principal<UserPrincipal>()!!
+                val id = call.parameters["id"]?.toLongOrNull()
 
-            val counterparty = CounterpartyDao.getById(id)
-            if (counterparty == null) {
-                call.respond(HttpStatusCode.NotFound, "Контрагент не найден")
-            } else {
-                call.respond(counterparty)
+                if (principal.counterpartyId != id && principal.role != UserRole.SYSTEM_ADMIN) {
+                    call.respond(HttpStatusCode.Forbidden, "Недостаточно прав для получения данных")
+                    return@get
+                }
+
+                if (id == null) {
+                    call.respond(HttpStatusCode.BadRequest, "ID контрагента не передан или некорректен")
+                    return@get
+                }
+
+                val counterparty = CounterpartyDao.getById(id)
+                if (counterparty == null) {
+                    call.respond(HttpStatusCode.NotFound, "Контрагент не найден")
+                } else {
+                    call.respond(counterparty)
+                }
             }
         }
 
@@ -100,7 +111,14 @@ fun Route.counterpartyRoutes() {
         }
 
         patch("/{id}/basic") {
+            val principal = call.principal<UserPrincipal>()!!
             val id = call.parameters["id"]?.toLongOrNull()
+
+            if (principal.counterpartyId != id && principal.role != UserRole.SYSTEM_ADMIN) {
+                call.respond(HttpStatusCode.Forbidden, "Нет прав для изменения этих данных")
+                return@patch
+            }
+
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
                 return@patch

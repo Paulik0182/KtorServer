@@ -99,8 +99,13 @@ fun Route.authRoutes() {
 
         authenticate("auth-jwt") {
             get("/me") {
-                val principal = call.principal<UserPrincipal>()!!
-                call.respond(MeResponse(principal.userId, principal.role.name, principal.counterpartyId))
+                try {
+                    val principal = call.principal<UserPrincipal>()!!
+                    call.respond(MeResponse(principal.userId, principal.role.name, principal.counterpartyId))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    call.respond(HttpStatusCode.InternalServerError, "Ошибка получения профиля")
+                }
             }
 
             post("/logout") {
