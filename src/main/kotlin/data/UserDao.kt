@@ -43,13 +43,14 @@ object UserDao {
                 )
             }
 
+            val counterpartyIdFinal = counterpartyId ?: CounterpartyDao.insertDefaultCounterparty(email)
             val hash = BCrypt.hashpw(password, BCrypt.gensalt())
 
             Users.insert {
                 it[Users.email] = email
                 it[Users.hashedPassword] = hash
                 it[Users.role] = role
-                it[Users.counterpartyId] = counterpartyId
+                it[Users.counterpartyId] = counterpartyIdFinal
             } get Users.id
         }
     }

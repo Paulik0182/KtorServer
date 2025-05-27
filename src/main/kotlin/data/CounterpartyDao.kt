@@ -13,6 +13,7 @@ import com.example.data.dto.product.CurrencyResponse
 import com.example.data.dto.product.LinkResponse
 import com.example.data.dto.product.ProductCounterpartyResponse
 import com.example.data.dto.product.UrlsResponse
+import com.example.data.error.AuthException
 import io.ktor.http.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -199,6 +200,54 @@ object CounterpartyDao {
 
         insertCounterpartyDependencies(id, counterparty)
         return@transaction id
+    }
+
+    /**
+     * Формируем уникальное ShortName при создании новой учетной записи.
+     */
+    fun insertDefaultCounterparty(email: String): Long = transaction {
+        val rawBaseName = email.substringBefore("@")
+
+        // Очистка baseName от запрещённых символов и лишних пробелов (Соответствует валидации на стороне Приложения)
+        val baseNameCleaned = rawBaseName
+            .replace("\n", "")
+            .replace(Regex(" {2,}"), " ")
+            .trim()
+            .replace(Regex("[^a-zA-Z0-9@#/_\\-.\\s]"), "") // соответствует ADVANCED_INVALID_CHARACTERS
+            .replace(Regex("[+!]"), "")                   // соответствует INVALID_CHARACTERS
+            .take(15)                                     // ограничение длины имени без суффикса
+
+        val maxAttempts = 4
+        val random = kotlin.random.Random
+
+        repeat(maxAttempts) { attempt ->
+            val suffix = if (attempt == 0) "" else (1..4)
+                .map { ('0'..'9').random(random) }
+                .joinToString("")
+            val candidateName = "$baseNameCleaned$suffix"
+
+            // Проверка уникальности
+            val isUnique = Counterparties
+                .selectAll().where { Counterparties.shortName eq candidateName }
+                .empty()
+
+            if (isUnique) {
+                return@transaction Counterparties.insert {
+                    it[shortName] = candidateName
+                    it[companyName] = null
+                    it[type] = "customer"
+                    it[isCustomer] = true
+                    it[isLegalEntity] = false
+                    it[imagePath] = null
+                    it[nip] = null
+                    it[krs] = null
+                    it[firstName] = null
+                    it[lastName] = null
+                } get Counterparties.id
+            }
+        }
+
+        throw AuthException("registration_server_error", "Ошибка сервера регистрации. Попробуйте позже.")
     }
 
     fun update(id: Long, counterparty: CounterpartyRequest) = transaction {
