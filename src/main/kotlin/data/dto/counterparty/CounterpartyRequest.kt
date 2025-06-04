@@ -92,6 +92,9 @@ data class CounterpartyAddressRequest(
     val entranceNumber: String?,
     val floor: String?,
     val numberIntercom: String?,
+
+    val isMain: Boolean = false,
+    val fullName: String? = null
 )
 
 @Serializable

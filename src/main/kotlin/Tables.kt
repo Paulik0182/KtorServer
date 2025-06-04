@@ -258,6 +258,8 @@ object CounterpartyAddresses : Table("counterparty_addresses") {
     val entranceNumber = varchar("entrance_number", 5).nullable()
     val floor = varchar("floor", 2).nullable()
     val numberIntercom = varchar("number_intercom", 10).nullable()
+    val isMain = bool("is_main").default(false)
+    val fullName = varchar("full_name", 100).nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

@@ -10,11 +10,8 @@ import com.example.data.dto.dictionaries.CityTranslationResponse
 import com.example.data.dto.dictionaries.CountryResponse
 import com.example.data.dto.dictionaries.CountryTranslationResponse
 import io.ktor.http.*
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
 object AddressDao {
@@ -52,11 +49,77 @@ object AddressDao {
                         floor = it[CounterpartyAddresses.floor],
                         numberIntercom = it[CounterpartyAddresses.numberIntercom],
                         counterpartyShortName = getCounterpartyName(counterpartyId)?.let { listOf(it) },
-                        counterpartyFirstLastName = listOf(getCounterpartyFullName(counterpartyId))
+                        counterpartyFirstLastName = listOf(getCounterpartyFullName(counterpartyId)),
+                        isMain = it[CounterpartyAddresses.isMain],
+                        fullName = it[CounterpartyAddresses.fullName],
                     )
                 }
             addresses
         }
+
+    fun getAddressById(addressId: Long, languageCode: String = "ru"): CounterpartyAddressResponse? = transaction {
+        val row = CounterpartyAddresses
+            .selectAll()
+            .where { CounterpartyAddresses.id eq addressId }
+            .firstOrNull() ?: return@transaction null
+
+        val countryId = row[CounterpartyAddresses.countryId]
+        val cityId = row[CounterpartyAddresses.cityId]
+        val counterpartyId = row[CounterpartyAddresses.counterpartyId]
+
+        CounterpartyAddressResponse(
+            id = addressId,
+            counterpartyId = counterpartyId,
+            countryId = countryId,
+            country = getCountry(countryId, languageCode),
+            countryName = getCountryName(countryId),
+            cityId = cityId,
+            city = getCity(cityId, languageCode),
+            cityName = getCityName(cityId),
+            counterpartyContactId = row[CounterpartyAddresses.counterpartyContactId],
+            postalCode = row[CounterpartyAddresses.postalCode],
+            streetName = row[CounterpartyAddresses.streetName],
+            houseNumber = row[CounterpartyAddresses.houseNumber],
+            locationNumber = row[CounterpartyAddresses.locationNumber],
+            latitude = row[CounterpartyAddresses.latitude]?.toDouble(),
+            longitude = row[CounterpartyAddresses.longitude]?.toDouble(),
+            entranceNumber = row[CounterpartyAddresses.entranceNumber],
+            floor = row[CounterpartyAddresses.floor],
+            numberIntercom = row[CounterpartyAddresses.numberIntercom],
+            isMain = row[CounterpartyAddresses.isMain],
+            fullName = row[CounterpartyAddresses.fullName],
+            counterpartyShortName = getCounterpartyName(counterpartyId)?.let { listOf(it) },
+            counterpartyFirstLastName = listOf(getCounterpartyFullName(counterpartyId))
+        )
+    }
+
+    fun addAddress(counterpartyId: Long, address: CounterpartyAddressRequest): Long = transaction {
+        validateCityBelongsToCountry(address.cityId, address.countryId)
+
+        CounterpartyAddresses.insert {
+            it[this.counterpartyId] = counterpartyId
+            it[countryId] = address.countryId
+            it[cityId] = address.cityId
+            it[postalCode] = address.postalCode
+            it[streetName] = address.streetName
+            it[houseNumber] = address.houseNumber
+            it[locationNumber] = address.locationNumber
+            it[latitude] = address.latitude?.toBigDecimal()
+            it[longitude] = address.longitude?.toBigDecimal()
+            it[entranceNumber] = address.entranceNumber
+            it[floor] = address.floor
+            it[numberIntercom] = address.numberIntercom
+            it[isMain] = address.isMain
+            it[fullName] = address.fullName
+        } get CounterpartyAddresses.id
+    }
+
+    fun deleteAddress(counterpartyId: Long, addressId: Long): Boolean = transaction {
+        val deleted = CounterpartyAddresses.deleteWhere {
+            (CounterpartyAddresses.id eq addressId) and (CounterpartyAddresses.counterpartyId eq counterpartyId)
+        }
+        deleted > 0
+    }
 
     fun updateAddresses(counterpartyId: Long, addresses: List<CounterpartyAddressRequest>) = transaction {
         // Удаляем все старые адреса контрагента
@@ -84,6 +147,25 @@ object AddressDao {
         }
     }
 
+    fun patchAddress(counterpartyId: Long, addressId: Long, patch: Map<String, Any?>) = transaction {
+        CounterpartyAddresses.update(
+            where = { (CounterpartyAddresses.id eq addressId) and (CounterpartyAddresses.counterpartyId eq counterpartyId) }
+        ) {
+            patch["countryId"]?.let { value -> it[countryId] = value as Long }
+            patch["cityId"]?.let { value -> it[cityId] = value as Long }
+            patch["postalCode"]?.let { value -> it[postalCode] = value as String }
+            patch["streetName"]?.let { value -> it[streetName] = value as String }
+            patch["houseNumber"]?.let { value -> it[houseNumber] = value as String }
+            patch["locationNumber"]?.let { value -> it[locationNumber] = value as String }
+            patch["latitude"]?.let { value -> it[latitude] = (value as Double).toBigDecimal() }
+            patch["longitude"]?.let { value -> it[longitude] = (value as Double).toBigDecimal() }
+            patch["entranceNumber"]?.let { value -> it[entranceNumber] = value as String }
+            patch["floor"]?.let { value -> it[floor] = value as String }
+            patch["numberIntercom"]?.let { value -> it[numberIntercom] = value as String }
+            patch["isMain"]?.let { value -> it[isMain] = value as Boolean }
+            patch["fullName"]?.let { value -> it[fullName] = value as String }
+        }
+    }
 
     fun validateCityBelongsToCountry(cityId: Long, countryId: Long) {
         val city = Cities.selectAll().where { Cities.id eq cityId }.singleOrNull()

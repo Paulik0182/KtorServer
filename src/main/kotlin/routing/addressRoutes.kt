@@ -37,6 +37,121 @@ fun Route.addressRoutes() {
                     call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
                 }
             }
+
+            get("/{id}/addresses") {
+                val principal = call.principal<UserPrincipal>()!!
+                val id = call.parameters["id"]?.toLongOrNull()
+
+                if (principal.counterpartyId != id && principal.role != UserRole.SYSTEM_ADMIN) {
+                    call.respond(HttpStatusCode.Forbidden, "Нет доступа")
+                    return@get
+                }
+
+                if (id == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+                    return@get
+                }
+
+                val result = AddressDao.getCounterpartyAddresses(id)
+                call.respond(result)
+            }
+
+            get("/{id}/addresses/{addressId}") {
+                val principal = call.principal<UserPrincipal>()!!
+                val id = call.parameters["id"]?.toLongOrNull()
+                val addressId = call.parameters["addressId"]?.toLongOrNull()
+
+                if (principal.counterpartyId != id && principal.role != UserRole.SYSTEM_ADMIN) {
+                    call.respond(HttpStatusCode.Forbidden, "Нет доступа")
+                    return@get
+                }
+
+                if (id == null || addressId == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+                    return@get
+                }
+
+                val address = AddressDao.getAddressById(addressId)
+                if (address == null || address.counterpartyId != id) {
+                    call.respond(HttpStatusCode.NotFound, "Адрес не найден")
+                    return@get
+                }
+
+                call.respond(address)
+            }
+
+            post("/{id}/addresses") {
+                val principal = call.principal<UserPrincipal>()!!
+                val id = call.parameters["id"]?.toLongOrNull()
+
+                if (principal.counterpartyId != id && principal.role != UserRole.SYSTEM_ADMIN) {
+                    call.respond(HttpStatusCode.Forbidden, "Нет доступа")
+                    return@post
+                }
+
+                if (id == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+                    return@post
+                }
+
+                val request = call.receive<CounterpartyAddressRequest>()
+                try {
+                    val addressId = AddressDao.addAddress(id, request)
+                    call.respond(HttpStatusCode.Created, mapOf("id" to addressId))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    call.respond(HttpStatusCode.BadRequest, "Ошибка при создании: ${e.localizedMessage}")
+                }
+            }
+
+            delete("/{id}/addresses/{addressId}") {
+                val principal = call.principal<UserPrincipal>()!!
+                val id = call.parameters["id"]?.toLongOrNull()
+                val addressId = call.parameters["addressId"]?.toLongOrNull()
+
+                if (principal.counterpartyId != id && principal.role != UserRole.SYSTEM_ADMIN) {
+                    call.respond(HttpStatusCode.Forbidden, "Нет доступа")
+                    return@delete
+                }
+
+                if (id == null || addressId == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+                    return@delete
+                }
+
+                val success = AddressDao.deleteAddress(id, addressId)
+                if (success) {
+                    call.respond(HttpStatusCode.OK, "Адрес удалён")
+                } else {
+                    call.respond(HttpStatusCode.NotFound, "Адрес не найден")
+                }
+            }
+
+            patch("/{id}/addresses/{addressId}") {
+                val principal = call.principal<UserPrincipal>()!!
+                val id = call.parameters["id"]?.toLongOrNull()
+                val addressId = call.parameters["addressId"]?.toLongOrNull()
+
+                if (principal.counterpartyId != id && principal.role != UserRole.SYSTEM_ADMIN) {
+                    call.respond(HttpStatusCode.Forbidden, "Нет доступа")
+                    return@patch
+                }
+
+                if (id == null || addressId == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+                    return@patch
+                }
+
+                val patchData = call.receive<Map<String, @UnsafeVariance Any?>>()
+
+                try {
+                    AddressDao.patchAddress(id, addressId, patchData)
+                    call.respond(HttpStatusCode.OK, "Адрес обновлён")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    call.respond(HttpStatusCode.BadRequest, "Ошибка при обновлении: ${e.localizedMessage}")
+                }
+            }
         }
     }
 }
