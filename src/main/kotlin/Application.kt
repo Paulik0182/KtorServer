@@ -66,6 +66,7 @@ fun Application.module() {
         dictionaryRoutes()
         countryRoutes()
         authRoutes()
+        addressRoutes()
 
         static("/uploads") {
             files("uploads")

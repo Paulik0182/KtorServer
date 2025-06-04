@@ -134,25 +134,6 @@ fun Route.counterpartyRoutes() {
             }
         }
 
-
-
-        patch("/{id}/addresses") {
-            val id = call.parameters["id"]?.toLongOrNull()
-            if (id == null) {
-                call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
-                return@patch
-            }
-
-            val patchRequest = call.receive<List<CounterpartyAddressRequest>>()
-            try {
-                CounterpartyDao.updateAddresses(id, patchRequest)
-                call.respond(HttpStatusCode.OK, "Адрес обновлен")
-            } catch (e: Exception) {
-                e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
-            }
-        }
-
         patch("/{id}/representatives") {
             val id = call.parameters["id"]?.toLongOrNull()
             if (id == null) {
