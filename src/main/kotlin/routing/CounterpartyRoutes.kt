@@ -47,6 +47,30 @@ fun Route.counterpartyRoutes() {
                     call.respond(counterparty)
                 }
             }
+
+            patch("/{id}/basic") {
+                val principal = call.principal<UserPrincipal>()!!
+                val id = call.parameters["id"]?.toLongOrNull()
+
+                if (principal.counterpartyId != id && principal.role != UserRole.SYSTEM_ADMIN) {
+                    call.respond(HttpStatusCode.Forbidden, "Нет прав для изменения этих данных")
+                    return@patch
+                }
+
+                if (id == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+                    return@patch
+                }
+
+                val patchRequest = call.receive<CounterpartyPatchRequest>()
+                try {
+                    CounterpartyDao.updateBasicFields(id, patchRequest)
+                    call.respond(HttpStatusCode.OK, "Базовые поля обновлены")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
+                }
+            }
         }
 
         post {
@@ -110,29 +134,7 @@ fun Route.counterpartyRoutes() {
             }
         }
 
-        patch("/{id}/basic") {
-            val principal = call.principal<UserPrincipal>()!!
-            val id = call.parameters["id"]?.toLongOrNull()
 
-            if (principal.counterpartyId != id && principal.role != UserRole.SYSTEM_ADMIN) {
-                call.respond(HttpStatusCode.Forbidden, "Нет прав для изменения этих данных")
-                return@patch
-            }
-
-            if (id == null) {
-                call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
-                return@patch
-            }
-
-            val patchRequest = call.receive<CounterpartyPatchRequest>()
-            try {
-                CounterpartyDao.updateBasicFields(id, patchRequest)
-                call.respond(HttpStatusCode.OK, "Базовые поля обновлены")
-            } catch (e: Exception) {
-                e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
-            }
-        }
 
         patch("/{id}/addresses") {
             val id = call.parameters["id"]?.toLongOrNull()

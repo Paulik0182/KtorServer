@@ -19,6 +19,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.slf4j.LoggerFactory
 
 // ✅ DAO и маршруты для Counterparty (контрагента)
 
@@ -197,6 +198,7 @@ object CounterpartyDao {
             it[firstName] = counterparty.firstName
             it[lastName] = counterparty.lastName
         } get Counterparties.id
+        println("Created counterparty $id, isCustomer = ${Counterparties.selectAll().where { Counterparties.id eq id }.first()[Counterparties.isCustomer]}")
 
         insertCounterpartyDependencies(id, counterparty)
         return@transaction id
@@ -232,6 +234,8 @@ object CounterpartyDao {
                 .empty()
 
             if (isUnique) {
+                LoggerFactory.getLogger("InsertDebug").info("Insert counterparty: isCustomer = true")
+
                 return@transaction Counterparties.insert {
                     it[shortName] = candidateName
                     it[companyName] = null
