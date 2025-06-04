@@ -9,13 +9,13 @@ import com.example.data.dto.dictionaries.CityResponse
 import com.example.data.dto.dictionaries.CityTranslationResponse
 import com.example.data.dto.dictionaries.CountryResponse
 import com.example.data.dto.dictionaries.CountryTranslationResponse
+import com.example.data.error.addres.AddressValidation
 import io.ktor.http.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 
 object AddressDao {
-
 
     fun getCounterpartyAddresses(counterpartyId: Long, languageCode: String = "ru"): List<CounterpartyAddressResponse> =
         transaction {
@@ -94,6 +94,7 @@ object AddressDao {
     }
 
     fun addAddress(counterpartyId: Long, address: CounterpartyAddressRequest): Long = transaction {
+        AddressValidation.validateAddressFields(address)
         validateCityBelongsToCountry(address.cityId, address.countryId)
 
         CounterpartyAddresses.insert {
@@ -127,6 +128,7 @@ object AddressDao {
 
         // Вставляем новые адреса
         addresses.forEach { address ->
+            AddressValidation.validateAddressFields(address)
             // Валидация: проверяем, что город принадлежит стране
             validateCityBelongsToCountry(address.cityId, address.countryId)
 
@@ -148,6 +150,15 @@ object AddressDao {
     }
 
     fun patchAddress(counterpartyId: Long, addressId: Long, patch: Map<String, Any?>) = transaction {
+        AddressValidation.validatePatch(patch)
+
+        // Дополнительная валидация связи city-country
+        patch["countryId"]?.let { countryId ->
+            patch["cityId"]?.let { cityId ->
+                validateCityBelongsToCountry(cityId as Long, countryId as Long)
+            }
+        }
+
         CounterpartyAddresses.update(
             where = { (CounterpartyAddresses.id eq addressId) and (CounterpartyAddresses.counterpartyId eq counterpartyId) }
         ) {
@@ -276,4 +287,31 @@ object AddressDao {
             it.houseNumber,
             it.locationNumber
         ).joinToString(", ")
+
+    fun getCitiesByCountry(countryId: Long, languageCode: String = "ru"): List<CityResponse> = transaction {
+        Cities
+            .selectAll().where { Cities.countryId eq countryId }
+            .mapNotNull { cityRow ->
+                val cityId = cityRow[Cities.id]
+                val translations = CityTranslations
+                    .selectAll().where {
+                        (CityTranslations.cityId eq cityId) and (CityTranslations.languageCode eq languageCode)
+                    }
+                    .map {
+                        CityTranslationResponse(
+                            id = it[CityTranslations.id],
+                            cityId = cityId,
+                            languageCode = it[CityTranslations.languageCode],
+                            name = it[CityTranslations.name]
+                        )
+                    }
+
+                CityResponse(
+                    id = cityId,
+                    name = cityRow[Cities.name],
+                    countryId = cityRow[Cities.countryId],
+                    translations = translations
+                )
+            }
+    }
 }

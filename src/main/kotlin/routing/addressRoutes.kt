@@ -3,6 +3,8 @@ package com.example.routing
 import com.example.data.AddressDao
 import com.example.data.dto.counterparty.CounterpartyAddressRequest
 import com.example.data.dto.user.UserPrincipal
+import com.example.data.error.addres.AddressErrorResponse
+import com.example.data.error.addres.AddressValidationException
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.request.*
@@ -32,9 +34,14 @@ fun Route.addressRoutes() {
                 try {
                     AddressDao.updateAddresses(id, patchRequest)
                     call.respond(HttpStatusCode.OK, "Адрес обновлен")
+                } catch (e: AddressValidationException) {
+                    call.respond(HttpStatusCode.BadRequest, AddressErrorResponse(e.code, e.message))
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    call.respond(HttpStatusCode.InternalServerError, "Ошибка при обновлении: ${e.localizedMessage}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        AddressErrorResponse("internal_error", "Внутренняя ошибка")
+                    )
                 }
             }
 
@@ -98,9 +105,14 @@ fun Route.addressRoutes() {
                 try {
                     val addressId = AddressDao.addAddress(id, request)
                     call.respond(HttpStatusCode.Created, mapOf("id" to addressId))
+                } catch (e: AddressValidationException) {
+                    call.respond(HttpStatusCode.BadRequest, AddressErrorResponse(e.code, e.message))
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    call.respond(HttpStatusCode.BadRequest, "Ошибка при создании: ${e.localizedMessage}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        AddressErrorResponse("internal_error", "Внутренняя ошибка")
+                    )
                 }
             }
 
@@ -147,9 +159,14 @@ fun Route.addressRoutes() {
                 try {
                     AddressDao.patchAddress(id, addressId, patchData)
                     call.respond(HttpStatusCode.OK, "Адрес обновлён")
+                } catch (e: AddressValidationException) {
+                    call.respond(HttpStatusCode.BadRequest, AddressErrorResponse(e.code, e.message))
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    call.respond(HttpStatusCode.BadRequest, "Ошибка при обновлении: ${e.localizedMessage}")
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        AddressErrorResponse("internal_error", "Внутренняя ошибка")
+                    )
                 }
             }
         }

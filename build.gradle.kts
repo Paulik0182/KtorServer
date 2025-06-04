@@ -33,8 +33,8 @@ dependencies {
     implementation(libs.ktor.server.config.yaml)
     implementation(libs.kotlinx.serialization.json)
 
-    testImplementation(libs.ktor.server.test.host)
-    testImplementation(libs.kotlin.test.junit)
+//    testImplementation(libs.ktor.server.test.host)
+//    testImplementation(libs.kotlin.test.junit)
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
 
@@ -54,13 +54,17 @@ dependencies {
     // Поддержка конфигурации через YAML (возможно будет нужна)
 //    implementation("io.ktor:ktor-server-config-yaml:2.3.0")
 
-    // Тестирование базы данных
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
-    testImplementation("io.ktor:ktor-server-tests:2.3.13")
+    // Kotlin и JUnit 5
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.1.0")
-    // JUnit 5
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.3")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.1.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.0")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    // Ktor test
+    testImplementation("io.ktor:ktor-server-tests:2.3.13")
+    testImplementation("io.ktor:ktor-server-test-host:2.3.13")
+// H2 для in-memory тестов
+    testImplementation("com.h2database:h2:2.2.224")
 
     implementation("com.zaxxer:HikariCP:6.2.1") // Пул соединений HikariCP
 
