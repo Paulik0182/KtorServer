@@ -97,6 +97,23 @@ object AddressDao {
         AddressValidation.validateAddressFields(address)
         validateCityBelongsToCountry(address.cityId, address.countryId)
 
+        val count = CounterpartyAddresses.selectAll()
+            .where { CounterpartyAddresses.counterpartyId eq counterpartyId }
+            .count()
+
+        if (count >= 5) {
+            error(HttpStatusCode.BadRequest, "Нельзя создать более 5 адресов")
+        }
+
+        // Если новый адрес помечен как основной — снимаем флаг isMain со всех остальных
+        if (address.isMain) {
+            CounterpartyAddresses.update({
+                (CounterpartyAddresses.counterpartyId eq counterpartyId)
+            }) {
+                it[isMain] = false
+            }
+        }
+
         CounterpartyAddresses.insert {
             it[this.counterpartyId] = counterpartyId
             it[countryId] = address.countryId
@@ -149,7 +166,12 @@ object AddressDao {
         }
     }
 
-    fun patchAddress(counterpartyId: Long, addressId: Long, patch: Map<String, Any?>) = transaction {
+    fun patchAddress(
+        counterpartyId: Long,
+        addressId: Long,
+        patch: Map<String, Any?>
+    ) = transaction {
+
         AddressValidation.validatePatch(patch)
 
         // Дополнительная валидация связи city-country
@@ -160,8 +182,10 @@ object AddressDao {
         }
 
         CounterpartyAddresses.update(
-            where = { (CounterpartyAddresses.id eq addressId) and (CounterpartyAddresses.counterpartyId eq counterpartyId) }
-        ) {
+            where = {
+                (CounterpartyAddresses.id eq addressId) and
+                        (CounterpartyAddresses.counterpartyId eq counterpartyId)
+            }) {
             patch["countryId"]?.let { value -> it[countryId] = value as Long }
             patch["cityId"]?.let { value -> it[cityId] = value as Long }
             patch["postalCode"]?.let { value -> it[postalCode] = value as String }
@@ -175,6 +199,16 @@ object AddressDao {
             patch["numberIntercom"]?.let { value -> it[numberIntercom] = value as String }
             patch["isMain"]?.let { value -> it[isMain] = value as Boolean }
             patch["fullName"]?.let { value -> it[fullName] = value as String }
+        }
+
+        // Если патч содержит isMain = true, сбрасываем флаг у остальных адресов
+        if (patch["isMain"] as? Boolean == true) {
+            CounterpartyAddresses.update({
+                (CounterpartyAddresses.counterpartyId eq counterpartyId) and
+                        (CounterpartyAddresses.id neq addressId)
+            }) {
+                it[isMain] = false
+            }
         }
     }
 
