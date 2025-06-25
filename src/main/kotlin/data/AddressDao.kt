@@ -14,6 +14,7 @@ import io.ktor.http.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 
 object AddressDao {
 
@@ -140,30 +141,72 @@ object AddressDao {
     }
 
     fun updateAddresses(counterpartyId: Long, addresses: List<CounterpartyAddressRequest>) = transaction {
-        // Удаляем все старые адреса контрагента
-        CounterpartyAddresses.deleteWhere { CounterpartyAddresses.counterpartyId eq counterpartyId }
+        val incomingIds = addresses.mapNotNull { it.id }.toSet()
 
-        // Вставляем новые адреса
-        addresses.forEach { address ->
-            AddressValidation.validateAddressFields(address)
-            // Валидация: проверяем, что город принадлежит стране
-            validateCityBelongsToCountry(address.cityId, address.countryId)
+        // Получаем текущие адреса из БД
+        val dbAddresses = CounterpartyAddresses
+            .selectAll().where { CounterpartyAddresses.counterpartyId eq counterpartyId }
+            .associateBy { it[CounterpartyAddresses.id] }
 
-            CounterpartyAddresses.insert {
-                it[this.counterpartyId] = counterpartyId
-                it[countryId] = address.countryId
-                it[cityId] = address.cityId
-                it[postalCode] = address.postalCode
-                it[streetName] = address.streetName
-                it[houseNumber] = address.houseNumber
-                it[locationNumber] = address.locationNumber
-                it[latitude] = address.latitude?.toBigDecimal()
-                it[longitude] = address.longitude?.toBigDecimal()
-                it[entranceNumber] = address.entranceNumber
-                it[floor] = address.floor
-                it[numberIntercom] = address.numberIntercom
+        val dbIds = dbAddresses.keys
+
+        // Удаление адресов, которых больше нет
+        val toDelete = dbIds - incomingIds
+        if (toDelete.isNotEmpty()) {
+            CounterpartyAddresses.deleteWhere {
+                (CounterpartyAddresses.id inList toDelete) and
+                        (CounterpartyAddresses.counterpartyId eq counterpartyId)
             }
         }
+
+        // Вставка и обновление
+        addresses.forEach { request ->
+            AddressValidation.validateAddressFields(request)
+            validateCityBelongsToCountry(request.cityId, request.countryId)
+
+            if (request.id == null) {
+                // Новый адрес
+                CounterpartyAddresses.insert {
+                    it[this.counterpartyId] = counterpartyId
+                    it[countryId] = request.countryId
+                    it[cityId] = request.cityId
+                    it[postalCode] = request.postalCode
+                    it[streetName] = request.streetName
+                    it[houseNumber] = request.houseNumber
+                    it[locationNumber] = request.locationNumber
+                    it[latitude] = request.latitude?.toBigDecimal()
+                    it[longitude] = request.longitude?.toBigDecimal()
+                    it[entranceNumber] = request.entranceNumber
+                    it[floor] = request.floor
+                    it[numberIntercom] = request.numberIntercom
+                    it[isMain] = request.isMain ?: false
+                    it[fullName] = request.fullName
+                }
+            } else {
+                // Обновление существующего адреса
+                if (request.id in dbIds) {
+                    CounterpartyAddresses.update({ CounterpartyAddresses.id eq request.id }) {
+                        it[countryId] = request.countryId
+                        it[cityId] = request.cityId
+                        it[postalCode] = request.postalCode
+                        it[streetName] = request.streetName
+                        it[houseNumber] = request.houseNumber
+                        it[locationNumber] = request.locationNumber
+                        it[latitude] = request.latitude?.toBigDecimal()
+                        it[longitude] = request.longitude?.toBigDecimal()
+                        it[entranceNumber] = request.entranceNumber
+                        it[floor] = request.floor
+                        it[numberIntercom] = request.numberIntercom
+                        it[isMain] = request.isMain ?: false
+                        it[fullName] = request.fullName
+                    }
+                }
+            }
+        }
+
+        // Проверка на isMain
+        val mainCount = addresses.count { it.isMain == true }
+        require(mainCount <= 1) { "Only one address can be main." }
     }
 
     fun patchAddress(
@@ -173,6 +216,26 @@ object AddressDao {
     ) = transaction {
 
         AddressValidation.validatePatch(patch)
+
+        val allowedKeys = setOf(
+            "countryId",
+            "cityId",
+            "postalCode",
+            "streetName",
+            "houseNumber",
+            "locationNumber",
+            "latitude",
+            "longitude",
+            "entranceNumber",
+            "floor",
+            "numberIntercom",
+            "isMain",
+            "fullName"
+        )
+        val unknownKeys = patch.keys - allowedKeys
+        if (unknownKeys.isNotEmpty()) {
+            error(HttpStatusCode.BadRequest, "Неизвестные поля: ${unknownKeys.joinToString()}")
+        }
 
         // Дополнительная валидация связи city-country
         patch["countryId"]?.let { countryId ->
