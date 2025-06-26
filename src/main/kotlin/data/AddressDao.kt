@@ -284,6 +284,60 @@ object AddressDao {
         }
     }
 
+    fun updateAddress(
+        counterpartyId: Long,
+        addressId: Long,
+        request: CounterpartyAddressRequest
+    ) = transaction {
+        AddressValidation.validateAddressFields(request)
+        validateCityBelongsToCountry(request.cityId, request.countryId)
+
+        // Проверяем существование адреса
+        val existingAddress = CounterpartyAddresses
+            .selectAll()
+            .where {
+                (CounterpartyAddresses.id eq addressId) and
+                        (CounterpartyAddresses.counterpartyId eq counterpartyId)
+            }
+            .firstOrNull()
+
+        if (existingAddress == null) {
+            error(HttpStatusCode.NotFound, "Адрес не найден")
+        }
+
+        // Обновляем адрес
+        CounterpartyAddresses.update(
+            where = {
+                (CounterpartyAddresses.id eq addressId) and
+                        (CounterpartyAddresses.counterpartyId eq counterpartyId)
+            }
+        ) {
+            it[countryId] = request.countryId
+            it[cityId] = request.cityId
+            it[postalCode] = request.postalCode
+            it[streetName] = request.streetName
+            it[houseNumber] = request.houseNumber
+            it[locationNumber] = request.locationNumber
+            it[latitude] = request.latitude?.toBigDecimal()
+            it[longitude] = request.longitude?.toBigDecimal()
+            it[entranceNumber] = request.entranceNumber
+            it[floor] = request.floor
+            it[numberIntercom] = request.numberIntercom
+            it[isMain] = request.isMain
+            it[fullName] = request.fullName
+        }
+
+        // Если адрес основной - сбрасываем флаг у других
+        if (request.isMain) {
+            CounterpartyAddresses.update({
+                (CounterpartyAddresses.counterpartyId eq counterpartyId) and
+                        (CounterpartyAddresses.id neq addressId)
+            }) {
+                it[isMain] = false
+            }
+        }
+    }
+
     fun getCountry(id: Long, languageCode: String = "ru"): CountryResponse? = transaction {
         val translations = CountryTranslations
             .selectAll()

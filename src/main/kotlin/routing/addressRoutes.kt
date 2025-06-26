@@ -7,6 +7,7 @@ import com.example.data.error.addres.AddressErrorResponse
 import com.example.data.error.addres.AddressValidationException
 import io.ktor.http.*
 import io.ktor.server.auth.*
+import io.ktor.server.plugins.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -167,6 +168,48 @@ fun Route.addressRoutes() {
                         HttpStatusCode.InternalServerError,
                         AddressErrorResponse("internal_error", "Внутренняя ошибка")
                     )
+                }
+            }
+
+            put("/{id}/addresses/{addressId}") {
+                val principal = call.principal<UserPrincipal>()!!
+                val counterpartyId = call.parameters["id"]?.toLongOrNull()
+                val addressId = call.parameters["addressId"]?.toLongOrNull()
+
+                // Проверка прав доступа
+                if (principal.counterpartyId != counterpartyId && principal.role != UserRole.SYSTEM_ADMIN) {
+                    call.respond(HttpStatusCode.Forbidden, "Недостаточно прав")
+                    return@put
+                }
+
+                // Валидация ID
+                if (counterpartyId == null || addressId == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Некорректный ID")
+                    return@put
+                }
+
+                try {
+                    // Получаем данные запроса
+                    val request = call.receive<CounterpartyAddressRequest>()
+
+                    // Обновляем адрес
+                    AddressDao.updateAddress(counterpartyId, addressId, request)
+
+                    // Возвращаем успешный ответ
+                    call.respond(HttpStatusCode.OK, "Адрес успешно обновлён")
+                } catch (e: AddressValidationException) {
+                    call.respond(HttpStatusCode.BadRequest, AddressErrorResponse(e.code, e.message))
+                } catch (e: Exception) {
+                    when (e) {
+                        is NotFoundException -> call.respond(HttpStatusCode.NotFound, "Адрес не найден")
+                        else -> {
+                            e.printStackTrace()
+                            call.respond(
+                                HttpStatusCode.InternalServerError,
+                                AddressErrorResponse("internal_error", "Внутренняя ошибка сервера")
+                            )
+                        }
+                    }
                 }
             }
         }
