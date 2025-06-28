@@ -1,5 +1,6 @@
 package com.example.routing
 
+import com.example.data.AddressDao
 import com.example.data.CountryDao
 import io.ktor.http.*
 import io.ktor.server.response.*
@@ -22,5 +23,26 @@ fun Route.countryRoutes() {
             }
         }
 
+        get("/cities/{countryId}") {
+            try {
+                val languageCode = call.request.queryParameters["lang"] ?: "ru"
+                val countryId = call.parameters["countryId"]?.toLongOrNull()
+                    ?: return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Неверный идентификатор страны"
+                    )
+
+                val result = AddressDao.getCitiesByCountry(
+                    countryId = countryId,
+                    languageCode = languageCode
+                )
+                call.respond(result)
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    "Ошибка при получении списка городов: ${e.localizedMessage}"
+                )
+            }
+        }
     }
 }

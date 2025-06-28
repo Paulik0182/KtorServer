@@ -439,7 +439,10 @@ object AddressDao {
             it.locationNumber
         ).joinToString(", ")
 
-    fun getCitiesByCountry(countryId: Long, languageCode: String = "ru"): List<CityResponse> = transaction {
+    fun getCitiesByCountry(
+        countryId: Long,
+        languageCode: String = "ru"
+    ): List<CityResponse> = transaction {
         Cities
             .selectAll().where { Cities.countryId eq countryId }
             .mapNotNull { cityRow ->
