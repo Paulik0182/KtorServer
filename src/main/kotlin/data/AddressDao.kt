@@ -50,13 +50,22 @@ object AddressDao {
                         floor = it[CounterpartyAddresses.floor],
                         numberIntercom = it[CounterpartyAddresses.numberIntercom],
                         counterpartyShortName = getCounterpartyName(counterpartyId)?.let { listOf(it) },
-                        counterpartyFirstLastName = listOf(getCounterpartyFullName(counterpartyId)),
+                        counterpartyFirstLastName = listOf(getRecipientName(it, counterpartyId)),
                         isMain = it[CounterpartyAddresses.isMain],
                         fullName = it[CounterpartyAddresses.fullName],
                     )
                 }
             addresses
         }
+
+    fun getRecipientName(row: ResultRow, counterpartyId: Long): String {
+        // Сначала пробуем fullName из таблицы адресов
+        val fullName = row[CounterpartyAddresses.fullName]
+        if (!fullName.isNullOrBlank()) return fullName
+
+        // Если пусто — пробуем вычислить по контрагенту
+        return getCounterpartyFullName(counterpartyId)
+    }
 
     fun getAddressById(addressId: Long, languageCode: String = "ru"): CounterpartyAddressResponse? = transaction {
         val row = CounterpartyAddresses
@@ -67,6 +76,8 @@ object AddressDao {
         val countryId = row[CounterpartyAddresses.countryId]
         val cityId = row[CounterpartyAddresses.cityId]
         val counterpartyId = row[CounterpartyAddresses.counterpartyId]
+
+        val recipientName = getRecipientName(row, counterpartyId)
 
         CounterpartyAddressResponse(
             id = addressId,
@@ -90,7 +101,7 @@ object AddressDao {
             isMain = row[CounterpartyAddresses.isMain],
             fullName = row[CounterpartyAddresses.fullName],
             counterpartyShortName = getCounterpartyName(counterpartyId)?.let { listOf(it) },
-            counterpartyFirstLastName = listOf(getCounterpartyFullName(counterpartyId))
+            counterpartyFirstLastName = listOf(recipientName)
         )
     }
 

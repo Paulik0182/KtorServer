@@ -588,17 +588,18 @@ object CounterpartyDao {
     }
 
     fun getCounterpartyFullName(counterpartyId: Long): String = transaction {
-        val row = Counterparties
-            .selectAll()
-            .where { Counterparties.id eq counterpartyId }
-            .firstOrNull()
-
-        if (row != null) {
-            val firstName = row[Counterparties.firstName] ?: ""
-            val lastName = row[Counterparties.lastName] ?: ""
-            listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
-        } else {
-            "Неизвестный пользователь"
+        val row = Counterparties.selectAll().where { Counterparties.id eq counterpartyId }.firstOrNull()
+        if (row == null) return@transaction "Без имени"
+        val first = row[Counterparties.firstName]
+        val last = row[Counterparties.lastName]
+        val company = row[Counterparties.companyName]
+        val short = row[Counterparties.shortName]
+        return@transaction when {
+            !first.isNullOrBlank() || !last.isNullOrBlank() ->
+                "${first.orEmpty()} ${last.orEmpty()}".trim()
+            !company.isNullOrBlank() -> company
+            !short.isNullOrBlank() -> short
+            else -> "Без имени"
         }
     }
 
